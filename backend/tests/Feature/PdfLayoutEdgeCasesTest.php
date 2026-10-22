@@ -1,0 +1,45 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Services\Imports\PdfRuleParser;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+/**
+ * Page layouts that once broke the automatic PDF reader (fixture built by tests/Fixtures/make_layout_edge_cases.py).
+ */
+class PdfLayoutEdgeCasesTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private function questions(): array
+    {
+        $result = app(PdfRuleParser::class)->parse(base_path('tests/Fixtures/layout-edge-cases.pdf'));
+
+        return collect($result->questions)->keyBy('number')->all();
+    }
+
+    public function test_a_question_at_the_very_top_of_a_page_keeps_all_its_options(): void
+    {
+        // "(a) 4 (b) 8" has the same shape on every page, so it used to be dropped as a running header.
+        $questions = $this->questions();
+
+        foreach ([1, 2, 3, 4] as $n) {
+            $this->assertSame(['4', '8', '7', '9'], [$questions[$n]['option_1'], $questions[$n]['option_2'], $questions[$n]['option_3'], $questions[$n]['option_4']], "Q{$n}");
+            $this->assertSame(4, $questions[$n]['correct'], "Q{$n}");
+        }
+    }
+
+    public function test_stacked_fractions_in_a_two_column_option_grid_stay_in_their_own_option(): void
+    {
+        $q = $this->questions()[5];
+
+        // Each option is exactly its own fraction: nothing borrowed from the row below, and the fraction next to
+        // "(b)" does not end up in the question text.
+        // and they are stored as LaTeX, so they are drawn as real stacked fractions.
+        $this->assertSame(['$\frac{x}{2}$ + 5', '$\frac{1}{2x+5}$', '$\frac{x+5}{2}$', '$\frac{x+3}{2}$'], [$q['option_1'], $q['option_2'], $q['option_3'], $q['option_4']]);
+        $this->assertStringNotContainsString('2x+5', $q['body']);
+        $this->assertSame(4, $q['correct']);
+    }
+}

@@ -36,6 +36,11 @@ SUBSCRIPT = str.maketrans("0123456789+-=()−", "₀₁₂₃₄₅₆₇₈₉�
 COMBINING = {chr(c) for c in range(0x0300, 0x0370)} | {chr(c) for c in range(0x20D0, 0x2100)}
 ROOT_GLYPHS = "√∛∜"
 BOLD_OPEN, BOLD_CLOSE = "\x01", "\x02"   # around a single bold letter (a printed vector such as A or î)
+# Around a rebuilt fraction or root in the "rich" text:  \x03 <LaTeX> \x05 <plain text> \x04
+# (the plain text is what the "text" field and the answer-line comparison use; the LaTeX is what gets stored)
+MATH_OPEN, MATH_SEP, MATH_CLOSE = "\x03", "\x05", "\x04"
+ROOT_TEX = {"√": "\\sqrt{%s}", "∛": "\\sqrt[3]{%s}", "∜": "\\sqrt[4]{%s}"}
+MATH_MARKS = re.compile("\x03[^\x05]*\x05([^\x04]*)\x04")
 
 
 def out(data):
@@ -92,17 +97,26 @@ def render(chars):
     if not chars:
         return ""
     main = max(c["size"] for c in chars)  # a numerator or radicand may hold more indices than letters
-    return build_text(chars, main, baseline(chars, main)).strip()
+    return clean(build_text(chars, main, baseline(chars, main))).strip()
 
 
-def pseudo(text, x0, x1, y0, y1, size, kind, order):
+def render_tex(chars):
+    """Same as render() but as LaTeX (inner fractions and roots included): the part inside \\frac{..}{..} or \\sqrt{..}."""
+    chars = sorted(chars, key=lambda c: (c["xs"], c["o"]))
+    if not chars:
+        return ""
+    main = max(c["size"] for c in chars)
+    return build_text(chars, main, baseline(chars, main), tex=True).strip()
+
+
+def pseudo(text, x0, x1, y0, y1, size, kind, order, tex=None):
     return {"c": text, "x0": x0, "y0": y0, "x1": x1, "y1": y1, "xs": x0, "o": order, "size": size,
-            "bold": False, "dead": False, "math": kind}
+            "bold": False, "dead": False, "math": kind, "tex": tex}
 
 
 def wrap(text):
     """Brackets around anything that is not a single number or word, so 'a+b' over 'c' stays readable."""
-    return text if re.fullmatch(r"[\w.,−-]*\w", text) and "−" not in text[1:] else f"({text})"
+    return text if re.fullmatch(r"[\w.,−-]*\w", text) and not re.search(r"[−-]", text[1:]) else f"({text})"
 
 
 def compose_math(chars, rules):
@@ -136,33 +150,44 @@ def compose_math(chars, rules):
         if not radicand:
             continue
         text = render(radicand)
+        tex = ROOT_TEX.get(root["c"], ROOT_TEX["√"]) % render_tex(radicand)
         root_bars.add((x0, x1, y))
         for c in radicand:
             c["dead"] = True
         root["dead"] = True
         order += 1
         chars.append(pseudo(root["c"] + wrap(text), root["x0"], x1, min(c["y0"] for c in radicand), max(c["y1"] for c in radicand),
-                            root["size"], "root", order))
+                            root["size"], "root", order, tex))
 
     # 3. Fractions: a bar with a tight stack of characters above and below it
     for x0, x1, y in rules:
         if x1 - x0 > 160 or (x0, x1, y) in root_bars:
             continue
         pool = alive(chars)
-        size = max((c["size"] for c in pool if x0 - 2 <= (c["x0"] + c["x1"]) / 2 <= x1 + 2 and abs(c["y0"] - y) < 20), default=10.0)
         center = lambda c: (c["x0"] + c["x1"]) / 2
-        # one text row above and one below the bar (not the line above that): a row is about one font size tall
-        above = [c for c in pool if x0 - 1.5 <= center(c) <= x1 + 1.5 and c["y1"] <= y + 1.0 and c["y0"] >= y - 1.4 * size]
-        below = [c for c in pool if x0 - 1.5 <= center(c) <= x1 + 1.5 and c["y0"] >= y - 1.0 and c["y1"] <= y + 1.5 * size]
-        if not above or not below:
-            continue
-        if y - max(c["y1"] for c in above) > 4.5 or min(c["y0"] for c in below) - y > 4.5:
+        mid = lambda c: (c["y0"] + c["y1"]) / 2
+        under_bar = [c for c in pool if x0 - 1.5 <= center(c) <= x1 + 1.5]
+        over = [c for c in under_bar if c["y1"] <= y + 1.0 and y - c["y1"] <= 4.5]
+        under = [c for c in under_bar if c["y0"] >= y - 1.0 and c["y0"] - y <= 4.5]
+        if not over or not under:
             continue  # not a tight stack: a table line, an underline or the page header rule
+        # Numerator and denominator are the ONE text row touching the bar on each side. A row is found from the
+        # character closest to the bar; anything a full row further away (the next line of options, say) is not part of it.
+        top = max(over, key=lambda c: c["y1"])
+        bottom = min(under, key=lambda c: c["y0"])
+        above = [c for c in under_bar if c["y1"] <= y + 1.0 and abs(mid(c) - mid(top)) <= 0.75 * top["size"]]
+        below = [c for c in under_bar if c["y0"] >= y - 1.0 and abs(mid(c) - mid(bottom)) <= 0.75 * bottom["size"]]
+        size = max(c["size"] for c in above + below)
+        # A fraction is set in a smaller type than the text around it, but it stands in that text's line: give it the
+        # size of the characters that sit on the bar's own height (the "(a)" in front of it, the "−5" after it).
+        on_the_bar = [c["size"] for c in pool if c["size"] > size and abs(mid(c) - y) <= 0.45 * c["size"] and c not in above and c not in below]
+        size = max(on_the_bar, default=size)
         num, den = render(above), render(below)
+        tex = "\\frac{%s}{%s}" % (render_tex(above), render_tex(below))
         for c in above + below:
             c["dead"] = True
         order += 1
-        chars.append(pseudo(f"{wrap(num)}/{wrap(den)}", x0, x1, y - 0.5 * size, y + 0.5 * size, size, "frac", order))
+        chars.append(pseudo(f"{wrap(num)}/{wrap(den)}", x0, x1, y - 0.5 * size, y + 0.5 * size, size, "frac", order, tex))
 
     return [c for c in chars if not c["dead"]]
 
@@ -193,7 +218,10 @@ def page_lines(page):
     orphans = []
     for ch in sorted(small, key=lambda c: c["xs"]):
         mid, cx = (ch["y0"] + ch["y1"]) / 2, (ch["x0"] + ch["x1"]) / 2
-        fits = [l for l in lines if l["x_lo"] <= cx <= l["x_hi"] and abs(mid - l["mid"]) <= 0.6 * l["size"]
+        # A whole fraction or root is one unit: it belongs to a line when it starts right where that line's text ends
+        # (an option label "(b)" with its fraction beside it), not only when its middle falls inside the line.
+        anchor = ch["x0"] if ch["math"] in ("frac", "root") else cx
+        fits = [l for l in lines if l["x_lo"] <= anchor <= l["x_hi"] and abs(mid - l["mid"]) <= 0.6 * l["size"]
                 and 0.55 * l["size"] <= ch["size"] < 0.8 * l["size"]]
         if fits:
             line = min(fits, key=lambda l: abs(mid - l["mid"]))
@@ -255,7 +283,8 @@ def cluster_lines(chars):
 
 
 def clean(rich):
-    return rich.replace(BOLD_OPEN, "").replace(BOLD_CLOSE, "")
+    """The plain text of a rich line: no bold marks, and rebuilt fractions/roots as their plain form."""
+    return MATH_MARKS.sub(r"\1", rich).replace(BOLD_OPEN, "").replace(BOLD_CLOSE, "")
 
 
 def lone_bold(chs, i):
@@ -270,7 +299,10 @@ def lone_bold(chs, i):
     return True
 
 
-def build_text(chs, main_size, base):
+TEX_ESCAPES = {"%": "\\%", "&": "\\&", "#": "\\#", "{": "\\{", "}": "\\}"}
+
+
+def build_text(chs, main_size, base, tex=False):
     """Join characters; add a space where there is a visible gap; mark small raised/lowered runs as super/subscripts."""
     parts = []
     prev = None
@@ -292,6 +324,10 @@ def build_text(chs, main_size, base):
         if kind:
             run = run or (kind, "")
             run = (kind, run[1] + ch["c"])
+        elif ch["math"] in ("frac", "root") and ch.get("tex"):
+            parts.append(ch["tex"] if tex else MATH_OPEN + ch["tex"] + MATH_SEP + ch["c"] + MATH_CLOSE)
+        elif tex:
+            parts.append(TEX_ESCAPES.get(ch["c"], ch["c"]))
         elif lone_bold(chs, i):
             parts.append(BOLD_OPEN + ch["c"] + BOLD_CLOSE)
         else:

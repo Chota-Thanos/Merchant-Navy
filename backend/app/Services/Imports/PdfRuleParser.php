@@ -93,7 +93,10 @@ class PdfRuleParser implements QuestionParser
                 $text = trim($line['text']);
                 // A question that starts at the very top of a page ("Question 6", "Q7 · …") is not a running header
                 $startsQuestion = preg_match('/^(Question\s+\d+$|Q\s*\d+\s*[·•|.:)])/iu', $text);
-                if (! $startsQuestion && $this->inMargin($line, $page) && (($seen[$this->shape($text)] ?? 0) >= $repeat || preg_match('/^Page\s+\d+(\s+of\s+\d+)?$/i', $text))) {
+                // Neither are its option and answer lines. "(a) 4 (b) 8" repeats on many pages, so it would otherwise
+                // look like a running header when a question sits right at the top or bottom of a page.
+                $belongsToQuestion = $startsQuestion || preg_match('/^(\(?[A-Da-d][).:]\s|Answer\s*[:\-]|Ans\s*[:\-])/u', $text);
+                if (! $belongsToQuestion && $this->inMargin($line, $page) && (($seen[$this->shape($text)] ?? 0) >= $repeat || preg_match('/^Page\s+\d+(\s+of\s+\d+)?$/i', $text))) {
                     continue;
                 }
                 $out[] = $line + ['page' => $page['number']];
@@ -358,14 +361,27 @@ class PdfRuleParser implements QuestionParser
 
     // ------------------------------------------------------------------ helpers
 
-    /** Escapes text for HTML and turns the tool's ^{…} / _{…} markers into superscripts / subscripts. */
+    /**
+     * Escapes text for HTML. The tool's ^{…} / _{…} markers become superscripts / subscripts, and a rebuilt fraction or
+     * root (\x03 LaTeX \x05 plain \x04) becomes real maths: $\frac{x+5}{2}$ is shown stacked by the admin list and the
+     * student app, and stays editable as text.
+     */
     private function html(string $text): string
     {
         $text = htmlspecialchars(preg_replace('/\s+/u', ' ', trim($text)), ENT_NOQUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $text = preg_replace('/\x01([^\x02]*)\x02/u', '<strong>$1</strong>', $text); // a single bold letter is a printed vector: A, î
         $text = str_replace(["\x01", "\x02"], '', $text);
 
-        return preg_replace(['/\^\{([^}]*)\}/u', '/_\{([^}]*)\}/u'], ['<sup>$1</sup>', '<sub>$1</sub>'], $text);
+        $out = '';
+        foreach (preg_split('/(\x03[^\x04]*\x04)/u', $text, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY) as $part) {
+            if (str_starts_with($part, "\x03")) {
+                $out .= '$'.explode("\x05", substr($part, 1, -1))[0].'$';   // inside maths the ^{…} stays LaTeX
+            } else {
+                $out .= preg_replace(['/\^\{([^}]*)\}/u', '/_\{([^}]*)\}/u'], ['<sup>$1</sup>', '<sub>$1</sub>'], $part);
+            }
+        }
+
+        return $out;
     }
 
     /** Does any picture on the question's pages sit between its first and last line? */

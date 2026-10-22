@@ -119,14 +119,15 @@ class QuestionImportTest extends TestCase
         $this->assertStringContainsString('fraction and square root', $byNumber[100]['warnings'][0]['message']);
 
         // Stacked fraction, unit-vector hats, printed (bold) vectors
-        $this->assertSame('16/3 <strong>î</strong> −4 <strong>ĵ</strong>', $byNumber[100]['option_1']);
+        // Rebuilt fractions and roots are stored as LaTeX, so the admin list and the student app draw them stacked
+        $this->assertSame('$\frac{16}{3}$ <strong>î</strong> −4 <strong>ĵ</strong>', $byNumber[100]['option_1']);
         $this->assertSame('12<strong>î</strong> −9 <strong>ĵ</strong>', $byNumber[100]['option_4']);
         $this->assertStringContainsString('<strong>A</strong>', $byNumber[6]['body']);
 
         // Square roots with the bar over powers and indices
-        $this->assertStringContainsString('A = √(8²+(−6)²) = 10', strip_tags($byNumber[100]['explanation']));
+        $this->assertStringContainsString('A = $\sqrt{8²+(−6)²}$ = 10', strip_tags($byNumber[100]['explanation']));
         $this->assertStringContainsString('R<sub>x</sub> = ΣF<sub>x</sub>', $byNumber[101]['explanation']);
-        $this->assertStringContainsString('R = √(6²+8²) = √100 = 10 N', strip_tags($byNumber[101]['explanation']));
+        $this->assertStringContainsString('R = $\sqrt{6²+8²}$ = $\sqrt{100}$ = 10 N', strip_tags($byNumber[101]['explanation']));
         $this->assertStringContainsString('F₁ = 4', strip_tags($byNumber[101]['body']));
 
         // Exponents that run over two characters stay on their line; options that differ only by a "/" stay different

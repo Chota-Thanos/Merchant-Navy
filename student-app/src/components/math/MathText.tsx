@@ -10,9 +10,12 @@ import { cn } from "@/lib/utils";
  */
 const MATH = /\$\$([\s\S]+?)\$\$|\$([^$\n]+?)\$/g;
 
+/** The stored HTML escapes < > & inside a formula too ("x &lt; 4"); KaTeX needs the real characters. */
+const unescapeHtml = (s: string) => s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#0?39;/g, "'").replace(/&amp;/g, "&");
+
 export function renderMath(html: string) {
   return html.replace(MATH, (_, block: string | undefined, inline: string | undefined) =>
-    katex.renderToString((block ?? inline)!, {
+    katex.renderToString(unescapeHtml((block ?? inline)!), {
       displayMode: block !== undefined,
       throwOnError: false,
       strict: "ignore",

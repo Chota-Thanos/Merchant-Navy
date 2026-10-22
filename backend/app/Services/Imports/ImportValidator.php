@@ -145,6 +145,11 @@ class ImportValidator
     public function norm(string $text): string
     {
         $text = html_entity_decode(strip_tags($text), ENT_QUOTES, 'UTF-8');
+        // The extractor writes a raised/lowered run without a Unicode form as "A^{′}", the stored option shows it as
+        // a real superscript; for comparing, both are just the characters.
+        $text = preg_replace('/[\^_]\{([^}]*)\}/u', '$1', $text);
+        // A rebuilt fraction or root is stored as LaTeX ($\frac{x+5}{2}$) but the answer line has its plain form ((x+5)/2).
+        $text = str_replace(['\\sqrt', '\\frac', '\\left', '\\right', '$'], ['√', '', '', '', ''], $text);
 
         return preg_replace('/[\s\p{P}]+/u', '', mb_strtolower($text));
     }
