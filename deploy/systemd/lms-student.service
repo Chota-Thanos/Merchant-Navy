@@ -9,8 +9,8 @@ User=www-data
 Group=www-data
 WorkingDirectory=/var/www/lms/student-app
 Environment=NODE_ENV=production
-Environment=PORT=3000
-ExecStart=/usr/bin/npm run start
+Environment=PORT=3010
+ExecStart=/usr/bin/npm run start -- -p 3010
 Restart=always
 RestartSec=5
 
