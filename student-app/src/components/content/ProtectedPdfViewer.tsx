@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Lock, ZoomIn, ZoomOut } from "lucide-react";
+import { ChevronLeft, ChevronRight, Lock, Maximize2, Minimize2, ZoomIn, ZoomOut } from "lucide-react";
 import * as api from "@/lib/api";
 import { useApi } from "@/lib/use-api";
 import { cn } from "@/lib/utils";
@@ -21,6 +21,8 @@ export function ProtectedPdfViewer({ contentId, pageCount }: { contentId: number
   const [page, setPage] = useState(1);
   const [zoom, setZoom] = useState(100);
   const scroller = useRef<HTMLDivElement>(null);
+  const frame = useRef<HTMLDivElement>(null);
+  const [full, setFull] = useState(false);
 
   // Scroll inside the viewer only (not the whole page) when the page number changes.
   useEffect(() => {
@@ -29,10 +31,32 @@ export function ProtectedPdfViewer({ contentId, pageCount }: { contentId: number
     if (box && target) box.scrollTo({ top: target.offsetTop - box.offsetTop - 16, behavior: "smooth" });
   }, [page]);
 
+  // Full screen: the page fills the whole window (works on every phone). Where the browser allows it
+  // we also ask for true full screen, which hides the browser bars. Esc leaves it.
+  useEffect(() => {
+    if (!full) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setFull(false);
+    const onChange = () => !document.fullscreenElement && setFull(false);
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("fullscreenchange", onChange);
+    document.body.style.overflow = "hidden";
+    void frame.current?.requestFullscreen?.().catch(() => {});
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("fullscreenchange", onChange);
+      document.body.style.overflow = "";
+      if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+    };
+  }, [full]);
+
   const watermark = me ? `${me.name} · ${me.phone}` : "";
 
   return (
-    <div className="protected-content overflow-hidden rounded-2xl border border-line bg-white" onContextMenu={(e) => e.preventDefault()}>
+    <div
+      ref={frame}
+      className={cn("protected-content overflow-hidden border border-line bg-white", full ? "fixed inset-0 z-50 flex flex-col rounded-none" : "rounded-2xl")}
+      onContextMenu={(e) => e.preventDefault()}
+    >
       <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2.5">
         <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
           <Lock className="size-3.5" /> View only
@@ -56,10 +80,16 @@ export function ProtectedPdfViewer({ contentId, pageCount }: { contentId: number
           <ToolButton label="Zoom in" onClick={() => setZoom((z) => Math.min(200, z + 20))}>
             <ZoomIn className="size-4" />
           </ToolButton>
+          <ToolButton label={full ? "Exit full screen" : "Read in full screen"} onClick={() => setFull((f) => !f)}>
+            {full ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+          </ToolButton>
         </div>
       </div>
 
-      <div ref={scroller} className="relative h-[calc(100dvh-11rem)] min-h-[28rem] select-none overflow-auto bg-slate-100 p-2 sm:p-3">
+      <div
+        ref={scroller}
+        className={cn("relative select-none overflow-auto bg-slate-100 p-2 sm:p-3", full ? "min-h-0 flex-1" : "h-[calc(100dvh-11rem)] min-h-[28rem]")}
+      >
         {/* Pages fill the available width; zoom scales from there */}
         {preparing && (
           <div className="grid h-full place-items-center text-center">
@@ -70,7 +100,7 @@ export function ProtectedPdfViewer({ contentId, pageCount }: { contentId: number
             </div>
           </div>
         )}
-        <div className="mx-auto space-y-3" style={{ width: `${zoom}%` }}>
+        <div className="mx-auto space-y-3" style={{ width: full ? `min(${zoom}%, ${(zoom / 100) * 60}rem)` : `${zoom}%` }}>
           {Array.from({ length: preparing ? 0 : total }, (_, i) => (
             <div key={i} id={`pdf-page-${i + 1}`} className="relative aspect-[1/1.414] overflow-hidden bg-white shadow-sm" draggable={false}>
               {pageUrls?.[i] ? (

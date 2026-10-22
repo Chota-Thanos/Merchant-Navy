@@ -2,7 +2,7 @@
 
 namespace App\Filament\Widgets;
 
-use App\Filament\Resources\StudentResource;
+use App\Filament\Support\AssignCourseAction;
 use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Tables\Columns\TextColumn;
@@ -29,8 +29,7 @@ class StudentsWaiting extends TableWidget
                 TextColumn::make('created_at')->label('Registered')->since(),
             ])
             ->recordActions([
-                Action::make('open')->label('Assign course')->icon('heroicon-o-plus-circle')
-                    ->url(fn (User $record) => StudentResource::getUrl('edit', ['record' => $record])),
+                AssignCourseAction::make(fn (Action $action) => $action->getRecord()),
             ])
             ->paginated([5, 10])
             ->emptyStateHeading('Everyone has a course');

@@ -5,15 +5,13 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\StudentResource\Pages;
 use App\Filament\Resources\StudentResource\RelationManagers\AttemptsRelationManager;
 use App\Filament\Resources\StudentResource\RelationManagers\CoursesRelationManager;
-use App\Models\Course;
+use App\Filament\Support\AssignCourseAction;
 use App\Models\User;
-use App\Services\Courses\EnrollmentService;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
-use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\IconColumn;
@@ -70,17 +68,7 @@ class StudentResource extends Resource
                 TernaryFilter::make('is_active')->label('Active'),
             ])
             ->recordActions([
-                Action::make('assign')->label('Assign course')->icon('heroicon-o-plus-circle')->color('primary')
-                    ->schema([
-                        Select::make('courses')->label('Courses')->multiple()->required()
-                            ->options(fn () => Course::where('is_active', true)->pluck('title', 'id')),
-                    ])
-                    ->action(function (User $record, array $data) {
-                        foreach (Course::findMany($data['courses']) as $course) {
-                            app(EnrollmentService::class)->assign($record, $course, auth('admin')->user());
-                        }
-                        Notification::make()->title('Course assigned — the student has been notified')->success()->send();
-                    }),
+                AssignCourseAction::make(fn (Action $action) => $action->getRecord()),
                 EditAction::make(),
             ]);
     }

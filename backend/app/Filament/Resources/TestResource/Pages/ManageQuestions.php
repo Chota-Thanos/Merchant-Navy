@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\TestResource\Pages;
 
 use App\Enums\ImportMethod;
+use App\Filament\Resources\CourseResource;
 use App\Filament\Resources\TestResource;
 use App\Filament\Support\ImportActions;
 use App\Filament\Support\QuestionForm;
@@ -121,6 +122,26 @@ class ManageQuestions extends Page
             ImportActions::template(),
             Action::make('settings')->label('Test settings')->icon('heroicon-m-cog-6-tooth')->color('gray')
                 ->url(fn () => TestResource::getUrl('edit', ['record' => $this->getRecord()])),
+            // When the questions are done the admin goes straight back to the course outline.
+            Action::make('done')->label('Done — back to course')->icon('heroicon-m-check-circle')->color('success')
+                ->url(fn () => $this->courseUrl()),
+        ];
+    }
+
+    private function courseUrl(): string
+    {
+        return CourseResource::getUrl('curriculum', ['record' => $this->getRecord()->course_id]);
+    }
+
+    /** Courses › this course › this test, so the way back is always one click. */
+    public function getBreadcrumbs(): array
+    {
+        $test = $this->getRecord();
+
+        return [
+            CourseResource::getUrl('index') => 'Courses',
+            $this->courseUrl() => $test->course->title,
+            '#' => $test->title,
         ];
     }
 
