@@ -128,7 +128,7 @@
                                                         <div class="cb-muted"><b style="font-weight:500">{{ $content->type->label() }}</b>@if ($meta = $outline->describe($content)) · {{ $meta }}@endif</div>
                                                     </div>
                                                     @if ($content->type === \App\Enums\ContentType::PracticeTest && $content->contentable)
-                                                        <x-filament::button size="xs" color="success" icon="heroicon-m-queue-list"
+                                                        <x-filament::button tag="a" size="xs" color="success" icon="heroicon-m-queue-list"
                                                             :href="\App\Filament\Resources\TestResource::getUrl('questions', ['record' => $content->contentable])">Manage questions</x-filament::button>
                                                     @endif
                                                     <x-filament::button size="xs" color="gray" icon="heroicon-m-pencil-square"
@@ -188,9 +188,9 @@
                                     @if ($item->questions_count === 0) · <span class="cb-warn">no questions yet</span>@endif
                                 </div>
                             </div>
-                            <x-filament::button size="xs" color="success" icon="heroicon-m-queue-list"
+                            <x-filament::button tag="a" size="xs" color="success" icon="heroicon-m-queue-list"
                                 :href="\App\Filament\Resources\TestResource::getUrl('questions', ['record' => $item])">Manage questions</x-filament::button>
-                            <x-filament::button size="xs" color="gray" icon="heroicon-m-cog-6-tooth"
+                            <x-filament::button tag="a" size="xs" color="gray" icon="heroicon-m-cog-6-tooth"
                                 :href="\App\Filament\Resources\TestResource::getUrl('edit', ['record' => $item])">Settings</x-filament::button>
                             <x-filament::dropdown placement="bottom-end">
                                 <x-slot name="trigger"><x-filament::icon-button icon="heroicon-m-ellipsis-vertical" color="gray" size="sm" label="More" /></x-slot>

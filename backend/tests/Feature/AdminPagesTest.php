@@ -6,6 +6,7 @@ use App\Enums\ImportMethod;
 use App\Enums\TestKind;
 use App\Models\Admin;
 use App\Models\Course;
+use App\Models\CurriculumItem;
 use App\Models\QuestionImport;
 use App\Models\Test;
 use App\Models\User;
@@ -51,6 +52,20 @@ class AdminPagesTest extends TestCase
         foreach ($pages as $url) {
             $this->get($url)->assertOk("{$url} should open");
         }
+    }
+
+    public function test_course_builder_questions_button_is_a_real_link(): void
+    {
+        $course = Course::create(['title' => 'C', 'slug' => 'c']);
+        $mock = Test::create(['course_id' => $course->id, 'title' => 'Mock', 'kind' => TestKind::Mock, 'duration_minutes' => 10]);
+        CurriculumItem::create(['course_id' => $course->id, 'item_type' => $mock->getMorphClass(), 'item_id' => $mock->id, 'position' => 0]);
+        $this->actingAs(Admin::create(['name' => 'A', 'email' => 'a@example.com', 'password' => 'secret-password']), 'admin');
+
+        $html = $this->get("/admin/courses/{$course->id}/curriculum")->assertOk()->getContent();
+
+        // A <button> with an href attribute does nothing when clicked; it has to be an <a>.
+        $this->assertMatchesRegularExpression('#<a\b[^>]*href="[^"]*/tests/'.$mock->id.'/questions"#', $html);
+        $this->assertMatchesRegularExpression('#<a\b[^>]*href="[^"]*/tests/'.$mock->id.'/edit"#', $html);
     }
 
     public function test_strangers_are_sent_to_the_login_page(): void
