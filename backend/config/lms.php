@@ -11,6 +11,9 @@ return [
     // Student app URL (used in emails and CORS).
     'student_app_url' => env('STUDENT_APP_URL', 'http://localhost:3000'),
 
+    // Host of the admin panel (empty locally, where it lives at /admin).
+    'admin_domain' => env('ADMIN_DOMAIN'),
+
     // Country code added to 10-digit phone numbers when sending SMS.
     'default_country_code' => '+91',
 

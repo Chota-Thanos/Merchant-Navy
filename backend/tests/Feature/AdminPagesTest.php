@@ -15,6 +15,15 @@ use Tests\TestCase;
 /** Smoke test: every admin page opens for a logged-in admin, and nothing opens for a stranger. */
 class AdminPagesTest extends TestCase
 {
+    public function test_front_door_redirects_instead_of_showing_a_placeholder(): void
+    {
+        $this->get('/')->assertRedirect('/admin');
+
+        config(['lms.admin_domain' => 'admin.example.test', 'lms.student_app_url' => 'https://app.example.test']);
+        $this->get('http://admin.example.test/')->assertRedirect('/login');
+        $this->get('http://api.example.test/')->assertRedirect('https://app.example.test');
+    }
+
     use RefreshDatabase;
 
     private function pages(): array
