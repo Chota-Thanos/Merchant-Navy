@@ -30,8 +30,8 @@ class AdminPanelProvider extends PanelProvider
         return $panel
             ->default()
             ->id('admin')
-            ->path(env('ADMIN_DOMAIN') ? '' : 'admin')
-            ->domain(env('ADMIN_DOMAIN'))
+            ->path(config('lms.admin_domain') ? '' : 'admin')
+            ->domain(config('lms.admin_domain'))
             ->authGuard('admin')
             ->login()
             ->brandName('My Merchant Navy')
