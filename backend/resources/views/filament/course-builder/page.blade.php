@@ -162,7 +162,7 @@
                                                     <span class="cb-ico t-{{ $content->type->value }}"><x-filament::icon :icon="\App\Filament\Support\ContentForm::ICONS[$content->type->value]" /></span>
                                                     <div class="cb-grow">
                                                         <div class="cb-title" style="font-size:.875rem">{{ $content->title }}</div>
-                                                        <div class="cb-muted"><b style="font-weight:500">{{ $content->type->label() }}</b>@if ($meta = $outline->describe($content)) · {{ $meta }}@endif</div>
+                                                        <div class="cb-muted cb-math"><b style="font-weight:500">{{ $content->type->label() }}</b>@if ($meta = $outline->describe($content)) · {{ $meta }}@endif</div>
                                                     </div>
                                                     @if ($content->type === \App\Enums\ContentType::PracticeTest && $content->contentable)
                                                         <x-filament::button tag="a" size="xs" color="success" icon="heroicon-m-queue-list"

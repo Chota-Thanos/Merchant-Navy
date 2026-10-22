@@ -1,34 +1,11 @@
 {{-- Loaded in every admin page: styles for the course/test builders + KaTeX so formulas display as formulas. --}}
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
-<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
-<script>
-    // Renders $...$ and $$...$$ inside any element with class "cb-math" (builder rows and table cells).
-    // Editors are never touched, so typing LaTeX is safe.
-    (function () {
-        const options = {
-            delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}],
-            throwOnError: false,
-        };
-        let queued = false;
-        function render() {
-            queued = false;
-            if (!window.renderMathInElement) return setTimeout(schedule, 200);
-            document.querySelectorAll('.cb-math').forEach((el) => {
-                if (el.dataset.mathSource === el.textContent) return;
-                window.renderMathInElement(el, options);
-                el.dataset.mathSource = el.textContent;
-            });
-        }
-        function schedule() {
-            if (queued) return;
-            queued = true;
-            setTimeout(render, 60);
-        }
-        new MutationObserver(schedule).observe(document.documentElement, {childList: true, subtree: true});
-        document.addEventListener('DOMContentLoaded', schedule);
-    })();
-</script>
+{{-- KaTeX is served from this site (public/vendor/katex, same version as the student app): no outside website is needed. --}}
+<link rel="stylesheet" href="{{ asset('vendor/katex/katex.min.css') }}">
+<script defer src="{{ asset('vendor/katex/katex.min.js') }}"></script>
+<script defer src="{{ asset('vendor/katex/contrib/mhchem.min.js') }}"></script> {{-- chemistry formulas, e.g. ce{H2O} --}}
+<script defer src="{{ asset('vendor/katex/contrib/auto-render.min.js') }}"></script>
+{{-- The script that draws the formulas is its own file (public/vendor/mmn/admin-math.js). --}}
+<script defer src="{{ asset('vendor/mmn/admin-math.js') }}?v={{ filemtime(public_path('vendor/mmn/admin-math.js')) }}"></script>
 
 <style>
     /* ===== Course & test builder (prefix cb-) ===== */

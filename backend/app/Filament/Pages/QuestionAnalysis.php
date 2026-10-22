@@ -48,7 +48,8 @@ class QuestionAnalysis extends Page implements HasTable
                 ->selectRaw($answers('and aa.selected_option_id is not null and exists (select 1 from question_options qo where qo.id = aa.selected_option_id and qo.is_correct = false)').' as wrong_count')
                 ->selectRaw($answers('and aa.selected_option_id is null').' as skipped_count'))
             ->columns([
-                TextColumn::make('body')->label('Question')->wrap()->formatStateUsing(fn ($state) => Str::limit(strip_tags($state), 100)),
+                TextColumn::make('body')->label('Question')->wrap()->extraAttributes(['class' => 'cb-math'])
+                    ->formatStateUsing(fn ($state) => Str::limit(strip_tags($state), 100)), // $…$ formulas are drawn by the admin KaTeX script
                 TextColumn::make('correct_count')->label('Correct')->color('success')->sortable(),
                 TextColumn::make('wrong_count')->label('Wrong')->color('danger')->sortable(),
                 TextColumn::make('skipped_count')->label('Skipped')->sortable(),
