@@ -1,0 +1,18 @@
+# Student website (Next.js).
+# Install:  sudo cp lms-student.service /etc/systemd/system/ && sudo systemctl enable --now lms-student
+[Unit]
+Description=LMS student website
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/lms/student-app
+Environment=NODE_ENV=production
+Environment=PORT=3000
+ExecStart=/usr/bin/npm run start
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

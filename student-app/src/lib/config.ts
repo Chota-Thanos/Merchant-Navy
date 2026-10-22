@@ -1,0 +1,52 @@
+/**
+ * App-wide settings. Brand text, sidebar menu and profile options live here
+ * so they can be changed without touching any page.
+ */
+import { BookOpen, ClipboardList, Trophy, UserRound, type LucideIcon } from "lucide-react";
+
+export const brand = {
+  name: "My Merchant Navy",
+  shortName: "MMN",
+  tagline: "From Aspirant to Officer.",
+  /** Put the logo file at public/brand/logo.png. Until then a text logo is shown. */
+  logoSrc: "/brand/logo.png",
+  website: "https://mymerchantnavy.com",
+  supportEmail: "support@mymerchantnavy.com",
+};
+
+export interface NavItem {
+  label: string;
+  href: string;
+  icon: LucideIcon;
+  /** Other URL prefixes that should also highlight this item. */
+  alsoActiveOn?: string[];
+}
+
+/** Student sidebar. Order here = order on screen. */
+export const sidebarNav: NavItem[] = [
+  { label: "My Courses", href: "/my-courses", icon: BookOpen, alsoActiveOn: ["/learn"] },
+  { label: "Mock Tests", href: "/mock-tests", icon: ClipboardList },
+  { label: "Results", href: "/results", icon: Trophy },
+  { label: "My Profile", href: "/profile", icon: UserRound },
+];
+
+/** Options shown in the profile form. */
+export const targetExams = [
+  "IMU-CET",
+  "Company Sponsorship Exam",
+  "DNS (Diploma in Nautical Science)",
+  "B.Tech Marine Engineering",
+  "GP Rating",
+  "ETO (Electro-Technical Officer)",
+  "Other",
+];
+
+export function attemptYears(from = new Date().getFullYear()): number[] {
+  return [from, from + 1, from + 2, from + 3];
+}
+
+/** Maximum devices a student can be logged in on at once (enforced by the backend). */
+export const MAX_DEVICES = 2;
+
+/** Seconds before the "Resend OTP" link becomes active. */
+export const OTP_RESEND_SECONDS = 30;

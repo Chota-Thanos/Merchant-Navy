@@ -1,0 +1,8 @@
+.claude/
+__pycache__/
+*.pyc
+.env.local
+.env.production
+student-app/.env*
+!student-app/.env.example
+!student-app/.env.production.example

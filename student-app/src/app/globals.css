@@ -1,0 +1,92 @@
+@import "tailwindcss";
+
+/*
+ * Brand theme — My Merchant Navy.
+ * Change colours here only; every component uses these tokens
+ * (e.g. bg-navy-900, text-brand-600, bg-status-answered).
+ */
+@theme {
+  --font-sans: var(--font-inter), "Segoe UI", Arial, sans-serif;
+  --font-display: var(--font-jakarta), var(--font-inter), sans-serif;
+
+  /* Navy — sidebar, headings, dark surfaces */
+  --color-navy-950: #071429;
+  --color-navy-900: #0b1e3d;
+  --color-navy-800: #112a52;
+  --color-navy-700: #1a3a6b;
+
+  /* Brand blue — buttons, links, active states */
+  --color-brand-50: #eff6ff;
+  --color-brand-100: #dbeafe;
+  --color-brand-200: #bfdbfe;
+  --color-brand-500: #3b82f6;
+  --color-brand-600: #2563eb;
+  --color-brand-700: #1d4ed8;
+
+  /* Page surfaces */
+  --color-surface: #f5f7fb;
+  --color-line: #e5e9f0;
+
+  /* Test palette states (see components/test/QuestionPalette.tsx) */
+  --color-status-answered: #16a34a;
+  --color-status-not-answered: #dc2626;
+  --color-status-review: #7c3aed;
+  --color-status-not-visited: #e5e7eb;
+}
+
+body {
+  background: var(--color-surface);
+  color: #1e293b;
+  font-family: var(--font-sans);
+}
+
+/* Matches mymerchantnavy.com: Jakarta headings, weight 800, slightly tight tracking */
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+h1 {
+  letter-spacing: -0.03em;
+}
+
+/* KaTeX: keep long display equations inside their card on small screens */
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2px 0;
+}
+
+/* Protected PDFs can't be printed */
+@media print {
+  .protected-content {
+    display: none !important;
+  }
+}
+
+/* Rich text written by admins (notes, questions, explanations) */
+.rich-text p {
+  margin: 0.5rem 0;
+}
+.rich-text ul {
+  list-style: disc;
+  padding-left: 1.25rem;
+  margin: 0.5rem 0;
+}
+.rich-text ol {
+  list-style: decimal;
+  padding-left: 1.25rem;
+  margin: 0.5rem 0;
+}
+.rich-text h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-navy-900);
+  margin: 1rem 0 0.25rem;
+}
+.rich-text img {
+  max-width: 100%;
+  border-radius: 8px;
+}

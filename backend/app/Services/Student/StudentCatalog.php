@@ -1,0 +1,301 @@
+<?php
+
+namespace App\Services\Student;
+
+use App\Enums\ContentType;
+use App\Enums\TestKind;
+use App\Models\Assignment;
+use App\Models\AssignmentSubmission;
+use App\Models\Chapter;
+use App\Models\ChapterContent;
+use App\Models\ContentProgress;
+use App\Models\Course;
+use App\Models\CurriculumItem;
+use App\Models\LiveClass;
+use App\Models\Subject;
+use App\Models\Test;
+use App\Models\TestAttempt;
+use App\Models\User;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Collection;
+
+/**
+ * What ONE student can see: courses assigned to them, their subjects/chapters/content, and published tests.
+ * Every lookup is scoped to the student's enrolled courses, so ids from the browser can never reach another course.
+ *
+ * The arrays returned match the TypeScript types in student-app/src/types/index.ts. Change both together.
+ */
+class StudentCatalog
+{
+    /** Banner gradients for course cards (until courses get uploaded thumbnails). */
+    private const ACCENTS = [
+        'from-navy-900 via-navy-800 to-brand-600',
+        'from-brand-700 via-brand-600 to-sky-500',
+        'from-navy-800 via-brand-700 to-sky-500',
+        'from-slate-800 via-navy-700 to-brand-500',
+    ];
+
+    private ?Collection $courseIds = null;
+
+    private ?Collection $completed = null;
+
+    private ?Collection $testStats = null;
+
+    private ?Collection $enrollments = null;
+
+    public function __construct(private User $user, private VideoEmbed $embeds) {}
+
+    // ------------------------------------------------------------------ courses
+
+    /** @return Collection<int,int> */
+    public function courseIds(): Collection
+    {
+        return $this->courseIds ??= $this->user->enrollments()
+            ->whereHas('course', fn ($q) => $q->where('is_active', true))
+            ->pluck('course_id');
+    }
+
+    public function courses(): array
+    {
+        return Course::whereIn('id', $this->courseIds())
+            ->get()
+            ->map(fn (Course $c) => $this->courseSummary($c))
+            ->values()->all();
+    }
+
+    public function course(int $id): array
+    {
+        $course = $this->accessibleCourse($id);
+
+        $curriculum = $course->curriculum()
+            ->with(['item' => fn ($morph) => $morph->morphWith([Subject::class => ['chapters.contents.contentable']])])
+            ->get()
+            ->map(function (CurriculumItem $entry) {
+                $item = $entry->item;
+                if ($item instanceof Subject) {
+                    return ['kind' => 'subject', 'subject' => $this->subjectSummary($item)];
+                }
+                if ($item instanceof Test && $item->is_published) {
+                    return ['kind' => 'test', 'test' => $this->testSummary($item)];
+                }
+
+                return null;
+            })
+            ->filter()->values()->all();
+
+        return $this->courseSummary($course) + ['curriculum' => $curriculum];
+    }
+
+    public function subject(int $id): array
+    {
+        $subject = Subject::with('chapters.contents.contentable')
+            ->whereIn('course_id', $this->courseIds())->findOrFail($id);
+
+        return [
+            'id' => $subject->id,
+            'courseId' => $subject->course_id,
+            'courseTitle' => $subject->course->title,
+            'title' => $subject->title,
+            'description' => $subject->description ?? '',
+            'chapters' => $subject->chapters->map(fn (Chapter $ch) => [
+                'id' => $ch->id,
+                'title' => $ch->title,
+                'contents' => $this->visibleContents($ch)->map(fn (ChapterContent $c) => $this->content($c))->values()->all(),
+            ])->values()->all(),
+        ];
+    }
+
+    /** One content item plus its subject (the player shows the chapter list next to it). */
+    public function contentWithSubject(int $id): array
+    {
+        $content = $this->findContent($id);
+
+        return ['content' => $this->content($content), 'subject' => $this->subject($content->chapter->subject_id)];
+    }
+
+    public function findContent(int $id): ChapterContent
+    {
+        $content = ChapterContent::with('chapter.subject', 'contentable')->findOrFail($id);
+
+        if (! $this->courseIds()->contains($content->chapter->subject->course_id)
+            || ($content->contentable instanceof Test && ! $content->contentable->is_published)) {
+            throw new ModelNotFoundException;
+        }
+
+        return $content;
+    }
+
+    public function markComplete(int $contentId): void
+    {
+        $content = $this->findContent($contentId);
+
+        ContentProgress::firstOrCreate(
+            ['user_id' => $this->user->id, 'chapter_content_id' => $content->id],
+            ['completed_at' => now()],
+        );
+    }
+
+    // ------------------------------------------------------------------ tests
+
+    /** Published mock tests from all the student's courses. */
+    public function mockTests(): array
+    {
+        return Test::with('course')->whereIn('course_id', $this->courseIds())
+            ->where('kind', TestKind::Mock)->where('is_published', true)->withCount('questions')
+            ->orderBy('course_id')->orderBy('id')->get()
+            ->map(fn (Test $t) => $this->testSummary($t))->values()->all();
+    }
+
+    public function findTest(int $id): Test
+    {
+        return Test::with('course')->withCount('questions')
+            ->whereIn('course_id', $this->courseIds())->where('is_published', true)->findOrFail($id);
+    }
+
+    public function testSummary(Test $test): array
+    {
+        $stats = $this->testStats()->get($test->id);
+        $questions = $test->questions_count ?? $test->questions()->count();
+
+        return [
+            'id' => $test->id,
+            'title' => $test->title,
+            'kind' => $test->kind->value,
+            'courseId' => $test->course_id,
+            'courseTitle' => $test->course->title,
+            'questionsCount' => $questions,
+            'durationMinutes' => $test->duration_minutes,
+            'marksCorrect' => $test->marks_correct,
+            'marksWrong' => $test->marks_wrong,
+            'totalMarks' => $questions * $test->marks_correct,
+            'attemptsCount' => $stats['count'] ?? 0,
+            'bestScore' => $stats['best'] ?? null,
+            'lastAttemptId' => $stats['last'] ?? null,
+        ];
+    }
+
+    // ------------------------------------------------------------------ internals
+
+    private function accessibleCourse(int $id): Course
+    {
+        abort_unless($this->courseIds()->contains($id), 404);
+
+        return Course::findOrFail($id);
+    }
+
+    private function courseSummary(Course $course): array
+    {
+        $subjectIds = $course->subjects()->pluck('id');
+        $chapterIds = Chapter::whereIn('subject_id', $subjectIds)->pluck('id');
+        $contentIds = ChapterContent::whereIn('chapter_id', $chapterIds)->pluck('id');
+        $done = $contentIds->intersect($this->completed())->count();
+
+        return [
+            'id' => $course->id,
+            'title' => $course->title,
+            'description' => $course->description ?? '',
+            'accent' => self::ACCENTS[$course->id % count(self::ACCENTS)],
+            'subjectsCount' => $subjectIds->count(),
+            'chaptersCount' => $chapterIds->count(),
+            'testsCount' => $course->tests()->where('is_published', true)->count(),
+            'progressPercent' => $contentIds->isEmpty() ? 0 : (int) round($done / $contentIds->count() * 100),
+            'assignedAt' => $this->enrollments()->get($course->id)?->assigned_at?->toIso8601String(),
+        ];
+    }
+
+    private function subjectSummary(Subject $subject): array
+    {
+        $contents = $subject->chapters->flatMap(fn (Chapter $ch) => $this->visibleContents($ch));
+        $done = $contents->pluck('id')->intersect($this->completed())->count();
+
+        return [
+            'id' => $subject->id,
+            'title' => $subject->title,
+            'description' => $subject->description ?? '',
+            'chaptersCount' => $subject->chapters->count(),
+            'contentsCount' => $contents->count(),
+            'progressPercent' => $contents->isEmpty() ? 0 : (int) round($done / $contents->count() * 100),
+        ];
+    }
+
+    /** Content the student may see: unpublished practice tests are hidden. */
+    private function visibleContents(Chapter $chapter): Collection
+    {
+        return $chapter->contents->filter(fn (ChapterContent $c) => $c->contentable
+            && ! ($c->contentable instanceof Test && ! $c->contentable->is_published));
+    }
+
+    private function content(ChapterContent $c): array
+    {
+        $m = $c->contentable;
+        $base = [
+            'id' => $c->id,
+            'chapterId' => $c->chapter_id,
+            'type' => $c->type->value,
+            'title' => $c->title,
+            'completed' => $this->completed()->contains($c->id),
+        ];
+
+        return $base + match ($c->type) {
+            ContentType::Video => [
+                'durationSeconds' => $m->duration_seconds ?? 0,
+                'provider' => $m->provider->value,
+                'embedUrl' => $this->embeds->url($m),
+            ],
+            ContentType::LiveClass => $this->liveClass($m),
+            ContentType::Pdf => ['pageCount' => $m->page_count ?? 0],
+            ContentType::Note => ['readMinutes' => max(1, (int) ceil(str_word_count(strip_tags($m->body)) / 200)), 'body' => $m->body],
+            ContentType::Assignment => $this->assignment($m),
+            ContentType::PracticeTest => ['test' => $this->testSummary($m->loadMissing('course')->loadCount('questions'))],
+        };
+    }
+
+    private function liveClass(LiveClass $live): array
+    {
+        $recording = $live->recording;
+
+        return [
+            'startsAt' => $live->starts_at->toIso8601String(),
+            'durationMinutes' => $live->duration_minutes,
+            'status' => $live->status(),
+            'recording' => $recording ? ['durationSeconds' => $recording->duration_seconds ?? 0, 'embedUrl' => $this->embeds->url($recording)] : null,
+        ];
+    }
+
+    private function assignment(Assignment $assignment): array
+    {
+        $submission = AssignmentSubmission::where('assignment_id', $assignment->id)->where('user_id', $this->user->id)->first();
+
+        return [
+            'dueAt' => $assignment->due_at?->toIso8601String(),
+            'instructions' => $assignment->instructions,
+            'submittedAt' => $submission?->submitted_at->toIso8601String(),
+        ];
+    }
+
+    private function enrollments(): Collection
+    {
+        return $this->enrollments ??= $this->user->enrollments()->get()->keyBy('course_id');
+    }
+
+    /** Ids of content this student marked complete. */
+    private function completed(): Collection
+    {
+        return $this->completed ??= ContentProgress::where('user_id', $this->user->id)->pluck('chapter_content_id');
+    }
+
+    /** Per test: how many submitted attempts, best score, last attempt uuid. */
+    private function testStats(): Collection
+    {
+        return $this->testStats ??= TestAttempt::where('user_id', $this->user->id)->whereNotNull('submitted_at')
+            ->orderBy('id')->get(['uuid', 'test_id', 'score'])
+            ->groupBy('test_id')
+            ->map(fn (Collection $rows) => ['count' => $rows->count(), 'best' => $rows->max('score'), 'last' => $rows->last()->uuid]);
+    }
+
+    /** Forget cached numbers (after submitting a test or completing content). */
+    public function refresh(): void
+    {
+        $this->completed = $this->testStats = null;
+    }
+}
