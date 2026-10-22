@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, ArrowRight, CircleCheck, Clock, FileQuestion } from "lucide-react";
+import { ArrowLeft, ArrowRight, CircleCheck, Clock, FileQuestion, Trophy } from "lucide-react";
 import * as api from "@/lib/api";
 import type { ContentItem } from "@/types";
 import { useApi } from "@/lib/use-api";
@@ -33,6 +34,7 @@ export default function LearnPage() {
   const prev = all[index - 1];
   const next = all[index + 1];
   const chapter = subject.chapters.find((ch) => ch.id === content.chapterId)!;
+  let chapterNo = 0;
 
   async function markComplete() {
     await api.courses.markContentComplete(content.id);
@@ -98,16 +100,27 @@ export default function LearnPage() {
               <p className="font-bold text-navy-900">Chapter content</p>
             </div>
             <div className="max-h-[70vh] overflow-y-auto p-2">
-              {subject.chapters.map((ch, i) => (
+              {subject.chapters.map((ch) =>
+                ch.test ? (
+                  <Link
+                    key={ch.id}
+                    href={`/tests/${ch.test.id}`}
+                    className="mb-2 flex items-center gap-2 rounded-lg bg-navy-900/5 px-3 py-2.5 text-sm font-bold text-navy-900 hover:bg-navy-900/10"
+                  >
+                    <Trophy className="size-4 text-brand-600" /> {ch.test.title}
+                    <span className="ml-auto text-xs font-medium text-slate-500">Mock test</span>
+                  </Link>
+                ) : (
                 <div key={ch.id} className="mb-2">
                   <p className="px-3 pb-1 pt-2 text-xs font-bold text-slate-500">
-                    {i + 1}. {ch.title}
+                    {++chapterNo}. {ch.title}
                   </p>
                   {ch.contents.map((c) => (
                     <ContentRow key={c.id} item={c} active={c.id === content.id} compact />
                   ))}
                 </div>
-              ))}
+                ),
+              )}
             </div>
           </Card>
         </aside>

@@ -3,6 +3,7 @@
 namespace App\Services\Courses;
 
 use App\Enums\ContentType;
+use App\Enums\TestKind;
 use App\Jobs\ProcessPdfDocument;
 use App\Models\Assignment;
 use App\Models\Chapter;
@@ -39,7 +40,7 @@ class CourseOutline
     {
         return $course->curriculum()
             ->with(['item' => fn (MorphTo $morph) => $morph
-                ->morphWith([Subject::class => ['chapters.contents.contentable']])
+                ->morphWith([Subject::class => ['chapters.contents.contentable', 'chapters.test' => fn ($q) => $q->withCount('questions')]])
                 ->morphWithCount([Test::class => ['questions']])])
             ->get()
             ->filter(fn (CurriculumItem $entry) => $entry->item !== null)
@@ -49,13 +50,14 @@ class CourseOutline
     public function stats(Collection $entries): array
     {
         $subjects = $entries->pluck('item')->filter(fn ($i) => $i instanceof Subject);
-        $chapters = $subjects->flatMap->chapters;
+        $allChapters = $subjects->flatMap->chapters;
+        $chapters = $allChapters->reject->isMockTest();
 
         return [
             'subjects' => $subjects->count(),
             'chapters' => $chapters->count(),
             'contents' => $chapters->flatMap->contents->count(),
-            'mockTests' => $entries->pluck('item')->filter(fn ($i) => $i instanceof Test)->count(),
+            'mockTests' => $entries->pluck('item')->filter(fn ($i) => $i instanceof Test)->count() + $allChapters->filter->isMockTest()->count(),
             'emptyChapters' => $chapters->filter(fn ($c) => $c->contents->isEmpty())->count(),
         ];
     }
@@ -139,6 +141,36 @@ class CourseOutline
             'title' => $title,
             'position' => ($subject->chapters()->max('position') ?? -1) + 1,
         ]);
+    }
+
+    /** Puts a mock test in a subject's chapter list: at the end, or right after chapter `$afterChapterId`. */
+    public function addMockTestToSubject(Subject $subject, Test $test, ?int $afterChapterId = null): Chapter
+    {
+        return DB::transaction(function () use ($subject, $test, $afterChapterId) {
+            $entry = $subject->chapters()->create([
+                'title' => $test->title,
+                'test_id' => $test->id,
+                'position' => ($subject->chapters()->max('position') ?? -1) + 1,
+            ]);
+
+            if ($afterChapterId) {
+                $order = $subject->chapters()->pluck('id')->reject(fn ($id) => $id === $entry->id)->values();
+                $at = $order->search($afterChapterId);
+                $order->splice($at === false ? $order->count() : $at + 1, 0, [$entry->id]);
+                $this->arrangeChapters($subject, $order->all());
+            }
+
+            return $entry;
+        });
+    }
+
+    /** Mock tests of the course that are not on the course page or inside a subject yet. */
+    public function unplacedMockTests(Course $course): Collection
+    {
+        $placed = CurriculumItem::where('course_id', $course->id)->where('item_type', (new Test)->getMorphClass())->pluck('item_id')
+            ->merge(Chapter::whereIn('subject_id', $course->subjects()->pluck('id'))->whereNotNull('test_id')->pluck('test_id'));
+
+        return Test::where('course_id', $course->id)->where('kind', TestKind::Mock)->whereNotIn('id', $placed)->pluck('title', 'id');
     }
 
     public function renameChapter(Chapter $chapter, string $title): void

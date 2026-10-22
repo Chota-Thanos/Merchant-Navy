@@ -7,6 +7,7 @@ import * as api from "@/lib/api";
 import { useApi } from "@/lib/use-api";
 import { cn } from "@/lib/utils";
 import { ContentRow } from "@/components/course/ContentRow";
+import { TestCard } from "@/components/test/TestCard";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ErrorState, PageSkeleton } from "@/components/ui/States";
 
@@ -27,6 +28,8 @@ export default function SubjectPage() {
       return next;
     });
 
+  let chapterNo = 0;
+
   return (
     <>
       <PageHeader
@@ -40,13 +43,16 @@ export default function SubjectPage() {
       />
 
       <div className="space-y-4">
-        {subject.chapters.map((chapter, i) => {
+        {subject.chapters.map((chapter) => {
+          // A mock test placed between chapters: shown as a test card in its position.
+          if (chapter.test) return <TestCard key={chapter.id} test={chapter.test} />;
+          chapterNo += 1;
           const done = chapter.contents.filter((c) => c.completed).length;
           const isOpen = !closed.has(chapter.id);
           return (
             <section key={chapter.id} className="overflow-hidden rounded-2xl border border-line bg-white">
               <button onClick={() => toggle(chapter.id)} className="flex w-full items-center gap-4 px-5 py-4 text-left hover:bg-slate-50" aria-expanded={isOpen}>
-                <span className="text-xs font-bold uppercase tracking-wider text-brand-600">Chapter {i + 1}</span>
+                <span className="text-xs font-bold uppercase tracking-wider text-brand-600">Chapter {chapterNo}</span>
                 <span className="flex-1 font-bold text-navy-900">{chapter.title}</span>
                 <span className="hidden text-xs font-medium text-slate-500 sm:block">
                   {done}/{chapter.contents.length} completed

@@ -88,7 +88,7 @@ class StudentCatalog
 
     public function subject(int $id): array
     {
-        $subject = Subject::with('chapters.contents.contentable')
+        $subject = Subject::with(['chapters.contents.contentable', 'chapters.test' => fn ($q) => $q->withCount('questions')->with('course')])
             ->whereIn('course_id', $this->courseIds())->findOrFail($id);
 
         return [
@@ -97,11 +97,15 @@ class StudentCatalog
             'courseTitle' => $subject->course->title,
             'title' => $subject->title,
             'description' => $subject->description ?? '',
-            'chapters' => $subject->chapters->map(fn (Chapter $ch) => [
-                'id' => $ch->id,
-                'title' => $ch->title,
-                'contents' => $this->visibleContents($ch)->map(fn (ChapterContent $c) => $this->content($c))->values()->all(),
-            ])->values()->all(),
+            // A mock test placed between chapters comes through as an entry with `test` set and no contents.
+            'chapters' => $subject->chapters
+                ->reject(fn (Chapter $ch) => $ch->isMockTest() && ! $ch->test?->is_published)
+                ->map(fn (Chapter $ch) => [
+                    'id' => $ch->id,
+                    'title' => $ch->test?->title ?? $ch->title,
+                    'test' => $ch->test ? $this->testSummary($ch->test) : null,
+                    'contents' => $this->visibleContents($ch)->map(fn (ChapterContent $c) => $this->content($c))->values()->all(),
+                ])->values()->all(),
         ];
     }
 
@@ -186,7 +190,7 @@ class StudentCatalog
     private function courseSummary(Course $course): array
     {
         $subjectIds = $course->subjects()->pluck('id');
-        $chapterIds = Chapter::whereIn('subject_id', $subjectIds)->pluck('id');
+        $chapterIds = Chapter::realChapters()->whereIn('subject_id', $subjectIds)->pluck('id');
         $contentIds = ChapterContent::whereIn('chapter_id', $chapterIds)->pluck('id');
         $done = $contentIds->intersect($this->completed())->count();
 
@@ -212,7 +216,7 @@ class StudentCatalog
             'id' => $subject->id,
             'title' => $subject->title,
             'description' => $subject->description ?? '',
-            'chaptersCount' => $subject->chapters->count(),
+            'chaptersCount' => $subject->chapters->reject->isMockTest()->count(),
             'contentsCount' => $contents->count(),
             'progressPercent' => $contents->isEmpty() ? 0 : (int) round($done / $contents->count() * 100),
         ];

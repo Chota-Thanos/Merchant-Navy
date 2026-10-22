@@ -67,6 +67,8 @@ export interface Subject {
 export interface Chapter {
   id: number;
   title: string;
+  /** Set when this entry is a mock test placed between chapters (it has no contents). */
+  test?: TestSummary | null;
   contents: ContentItem[];
 }
 

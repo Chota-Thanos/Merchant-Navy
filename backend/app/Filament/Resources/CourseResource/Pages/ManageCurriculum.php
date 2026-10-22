@@ -128,24 +128,36 @@ class ManageCurriculum extends Page
             ->action(fn (array $data, array $arguments) => $this->outline()->renameChapter($this->findChapter($arguments['id']), $data['title']));
     }
 
-    /** Put a mock test on the course page. arguments: after (entry id to insert after, optional) */
+    /**
+     * Put a mock test on the course page (between subjects) or inside a subject (between chapters).
+     * arguments: after (entry id to insert after), or subject (+ afterChapter) to place it between chapters.
+     */
     public function mockTestAction(): Action
     {
         $courseId = $this->getRecord()->id;
 
-        return Action::make('mockTest')->modalHeading('Add a mock test to this course')->modalWidth('lg')->modalSubmitActionLabel('Add to course')
+        return Action::make('mockTest')
+            ->modalHeading(fn (array $arguments) => isset($arguments['subject']) ? 'Add a mock test to “'.$this->findSubject($arguments['subject'])->title.'”' : 'Add a mock test to this course')
+            ->modalWidth('lg')->modalSubmitActionLabel(fn (array $arguments) => isset($arguments['subject']) ? 'Add here' : 'Add to course')
             ->schema([
                 Select::make('test_id')->label('Mock test')->required()->searchable()->preload()
-                    ->options(fn () => Test::where('course_id', $courseId)->where('kind', TestKind::Mock)
-                        ->whereNotIn('id', CurriculumItem::where('course_id', $courseId)->where('item_type', 'test')->pluck('item_id'))
-                        ->pluck('title', 'id'))
+                    ->options(fn () => $this->outline()->unplacedMockTests($this->getRecord()))
                     ->helperText('Choose an existing mock test, or create a new one with the + button. Add its questions afterwards with "Manage questions".')
                     ->createOptionModalHeading('New mock test')
                     ->createOptionForm(ContentForm::newTestFields())
                     ->createOptionUsing(fn (array $data) => Test::create($data + ['course_id' => $courseId, 'kind' => TestKind::Mock, 'is_published' => true])->getKey()),
             ])
             ->action(function (array $data, array $arguments) {
-                $this->outline()->addMockTest($this->getRecord(), Test::where('course_id', $this->getRecord()->id)->findOrFail($data['test_id']), $arguments['after'] ?? null);
+                $test = Test::where('course_id', $this->getRecord()->id)->findOrFail($data['test_id']);
+
+                if (isset($arguments['subject'])) {
+                    $this->outline()->addMockTestToSubject($this->findSubject($arguments['subject']), $test, $arguments['afterChapter'] ?? null);
+                    Notification::make()->title('Mock test added between the chapters')->success()->send();
+
+                    return;
+                }
+
+                $this->outline()->addMockTest($this->getRecord(), $test, $arguments['after'] ?? null);
                 Notification::make()->title('Mock test added to the course')->success()->send();
             });
     }

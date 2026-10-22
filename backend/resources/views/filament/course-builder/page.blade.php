@@ -42,7 +42,7 @@
                     <li>Add a <b>subject</b> below (for example “Physics”).</li>
                     <li>Add <b>chapters</b> to it.</li>
                     <li>Add <b>content</b> to each chapter: lectures, PDFs, notes, live classes, assignments, practice tests.</li>
-                    <li>Add a <b>mock test</b> after any subject.</li>
+                    <li>Add a <b>mock test</b> after any subject, or between the chapters inside a subject.</li>
                 </ol>
             </div>
         @endif
@@ -75,7 +75,7 @@
                                 <div class="cb-title">{{ $item->title }}</div>
                                 @if ($item->description)<div class="cb-muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ $item->description }}</div>@endif
                             </div>
-                            <span class="cb-muted" style="white-space:nowrap">{{ $item->chapters->count() }} ch · {{ $item->chapters->sum(fn ($c) => $c->contents->count()) }} items</span>
+                            <span class="cb-muted" style="white-space:nowrap">{{ $item->chapters->reject->isMockTest()->count() }} ch · {{ $item->chapters->sum(fn ($c) => $c->contents->count()) }} items</span>
                             <x-filament::button size="xs" color="gray" icon="heroicon-m-pencil-square"
                                 wire:click="mountAction('subject', { id: {{ $item->id }} })">Edit</x-filament::button>
                             <x-filament::dropdown placement="bottom-end">
@@ -98,15 +98,52 @@
                                 data-subject="{{ $item->id }}"
                                 x-on:end.stop="$wire.arrangeChapters($event.from.dataset.subject, $event.from.sortable.toArray()); if ($event.to !== $event.from) $wire.arrangeChapters($event.to.dataset.subject, $event.to.sortable.toArray())"
                             >
+                                @php($chapterNo = 0)
                                 @foreach ($item->chapters as $chapter)
+                                  @if ($chapter->isMockTest())
+                                    {{-- A mock test placed between chapters: same list, same drag handle --}}
+                                    @php($mock = $chapter->test)
+                                    <li wire:key="chapter-{{ $chapter->id }}" x-sortable-item="chapter-{{ $chapter->id }}" id="chapter-{{ $chapter->id }}" class="cb-chapter cb-mock">
+                                        <div class="cb-head cb-row">
+                                            <span class="cb-handle" x-sortable-handle title="Drag to reorder"><x-filament::icon icon="heroicon-m-bars-3" /></span>
+                                            <span class="cb-ico t-mock"><x-filament::icon icon="heroicon-o-clipboard-document-list" /></span>
+                                            <div class="cb-grow">
+                                                <div class="cb-title">{{ $mock?->title ?? $chapter->title }}</div>
+                                                <div class="cb-muted">Mock test
+                                                    @if ($mock) · {{ $mock->questions_count }} {{ \Illuminate\Support\Str::plural('question', $mock->questions_count) }} · {{ $mock->duration_minutes }} min
+                                                        @unless ($mock->is_published) · <span class="cb-warn">draft (hidden from students)</span>@endunless
+                                                        @if ($mock->questions_count === 0) · <span class="cb-warn">no questions yet</span>@endif
+                                                    @endif
+                                                </div>
+                                            </div>
+                                            @if ($mock)
+                                                <x-filament::button tag="a" size="xs" color="success" icon="heroicon-m-queue-list"
+                                                    :href="\App\Filament\Resources\TestResource::getUrl('questions', ['record' => $mock])">Manage questions</x-filament::button>
+                                                <x-filament::button tag="a" size="xs" color="gray" icon="heroicon-m-cog-6-tooth"
+                                                    :href="\App\Filament\Resources\TestResource::getUrl('edit', ['record' => $mock])">Settings</x-filament::button>
+                                            @endif
+                                            <x-filament::icon-button icon="heroicon-m-x-mark" color="danger" size="sm" label="Remove from subject"
+                                                wire:click="deleteChapter({{ $chapter->id }})"
+                                                wire:confirm="Take this mock test out of the subject? The test and its results are kept." />
+                                        </div>
+                                    </li>
+                                  @else
+                                    @php($chapterNo++)
                                     <li wire:key="chapter-{{ $chapter->id }}" x-sortable-item="chapter-{{ $chapter->id }}" id="chapter-{{ $chapter->id }}" class="cb-chapter">
                                         <div class="cb-head cb-row">
                                             <span class="cb-handle" x-sortable-handle title="Drag to reorder"><x-filament::icon icon="heroicon-m-bars-3" /></span>
-                                            <span class="cb-muted" style="font-weight:600">Chapter {{ $loop->iteration }}</span>
+                                            <span class="cb-muted" style="font-weight:600">Chapter {{ $chapterNo }}</span>
                                             <span class="cb-title cb-grow">{{ $chapter->title }}</span>
                                             <span class="cb-muted">{{ $chapter->contents->count() }} {{ \Illuminate\Support\Str::plural('item', $chapter->contents->count()) }}</span>
                                             <x-filament::icon-button icon="heroicon-m-pencil-square" color="gray" size="sm" label="Rename chapter"
                                                 wire:click="mountAction('chapter', { id: {{ $chapter->id }} })" />
+                                            <x-filament::dropdown placement="bottom-end">
+                                                <x-slot name="trigger"><x-filament::icon-button icon="heroicon-m-ellipsis-vertical" color="gray" size="sm" label="More" /></x-slot>
+                                                <x-filament::dropdown.list>
+                                                    <x-filament::dropdown.list.item icon="heroicon-m-clipboard-document-list"
+                                                        wire:click="mountAction('mockTest', { subject: {{ $item->id }}, afterChapter: {{ $chapter->id }} })">Add a mock test after this chapter</x-filament::dropdown.list.item>
+                                                </x-filament::dropdown.list>
+                                            </x-filament::dropdown>
                                             <x-filament::icon-button icon="heroicon-m-trash" color="danger" size="sm" label="Delete chapter"
                                                 wire:click="deleteChapter({{ $chapter->id }})"
                                                 wire:confirm="Delete chapter “{{ $chapter->title }}” and everything in it?" />
@@ -165,14 +202,17 @@
                                             </x-filament::dropdown>
                                         </div>
                                     </li>
+                                  @endif
                                 @endforeach
                             </ul>
 
-                            {{-- Add chapter (type a name, press Enter) --}}
+                            {{-- Add chapter (type a name, press Enter), or a mock test between the chapters --}}
                             <div class="cb-add">
                                 <input class="cb-input" type="text" placeholder="New chapter name — press Enter to add"
                                     wire:model="newChapter.{{ $item->id }}" wire:keydown.enter="addChapter({{ $item->id }})">
                                 <x-filament::button color="gray" icon="heroicon-m-plus" wire:click="addChapter({{ $item->id }})">Add chapter</x-filament::button>
+                                <x-filament::button color="gray" icon="heroicon-m-clipboard-document-list"
+                                    wire:click="mountAction('mockTest', { subject: {{ $item->id }} })">Add mock test</x-filament::button>
                             </div>
                         </div>
                     </li>
@@ -213,7 +253,7 @@
                 <x-filament::button icon="heroicon-m-plus" wire:click="addSubject">Add subject</x-filament::button>
                 <x-filament::button color="gray" icon="heroicon-m-clipboard-document-list" wire:click="mountAction('mockTest')">Add mock test</x-filament::button>
             </div>
-            <p class="cb-muted" style="margin-top:.5rem">Tip: drag the ⋮⋮ handle to reorder. Drag a content item into another chapter to move it. Use a subject's ⋮ menu to insert a mock test right after it.</p>
+            <p class="cb-muted" style="margin-top:.5rem">Tip: add a chapter (or mock test), then drag its ☰ handle to put it between any existing chapters. Drag a content item into another chapter to move it. A chapter's ⋮ menu inserts a mock test right after it.</p>
         </div>
     </div>
 </x-filament-panels::page>
