@@ -101,6 +101,11 @@ class ManageCurriculum extends Page
             ->action(function (array $data, array $arguments) {
                 $existing = isset($arguments['id']) ? $this->findContent($arguments['id']) : null;
                 $chapter = $existing?->chapter ?? $this->findChapter($arguments['chapter']);
+
+                if ($arguments['type'] === ContentType::PracticeTest->value) {
+                    // "Create a new practice test" is turned into a real test (named after the content) before saving.
+                    $data['test_id'] = ContentForm::resolveTest($data, $this->getRecord()->id, TestKind::Practice, $data['title'])->id;
+                }
                 $this->outline()->saveContent($chapter, ContentType::from($arguments['type']), $data, $existing);
 
                 Notification::make()->title($existing ? 'Saved' : 'Added to “'.$chapter->title.'”')->success()->send();
@@ -138,27 +143,22 @@ class ManageCurriculum extends Page
 
         return Action::make('mockTest')
             ->modalHeading(fn (array $arguments) => isset($arguments['subject']) ? 'Add a mock test to “'.$this->findSubject($arguments['subject'])->title.'”' : 'Add a mock test to this course')
-            ->modalWidth('lg')->modalSubmitActionLabel(fn (array $arguments) => isset($arguments['subject']) ? 'Add here' : 'Add to course')
-            ->schema([
-                Select::make('test_id')->label('Mock test')->required()->searchable()->preload()
-                    ->options(fn () => $this->outline()->unplacedMockTests($this->getRecord()))
-                    ->helperText('Choose an existing mock test, or create a new one with the + button. Add its questions afterwards with "Manage questions".')
-                    ->createOptionModalHeading('New mock test')
-                    ->createOptionForm(ContentForm::newTestFields())
-                    ->createOptionUsing(fn (array $data) => Test::create($data + ['course_id' => $courseId, 'kind' => TestKind::Mock, 'is_published' => true])->getKey()),
-            ])
-            ->action(function (array $data, array $arguments) {
-                $test = Test::where('course_id', $this->getRecord()->id)->findOrFail($data['test_id']);
+            ->modalWidth('2xl')->modalSubmitActionLabel(fn (array $arguments) => isset($arguments['subject']) ? 'Add here' : 'Add to course')
+            ->schema(ContentForm::testPicker($courseId, TestKind::Mock))
+            ->action(function (array $data, array $arguments) use ($courseId) {
+                $test = ContentForm::resolveTest($data, $courseId, TestKind::Mock);
+                $created = ($data['mode'] ?? 'existing') === 'new';
+                $hint = $created ? ' Now add its questions with “Manage questions”.' : '';
 
                 if (isset($arguments['subject'])) {
                     $this->outline()->addMockTestToSubject($this->findSubject($arguments['subject']), $test, $arguments['afterChapter'] ?? null);
-                    Notification::make()->title('Mock test added between the chapters')->success()->send();
+                    Notification::make()->title('Mock test added between the chapters.'.$hint)->success()->send();
 
                     return;
                 }
 
                 $this->outline()->addMockTest($this->getRecord(), $test, $arguments['after'] ?? null);
-                Notification::make()->title('Mock test added to the course')->success()->send();
+                Notification::make()->title('Mock test added to the course.'.$hint)->success()->send();
             });
     }
 

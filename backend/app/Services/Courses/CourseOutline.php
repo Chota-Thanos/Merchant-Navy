@@ -89,7 +89,7 @@ class CourseOutline
             ContentType::Pdf => ['file' => $m->file_path],
             ContentType::Note => ['body' => $m->body],
             ContentType::Assignment => ['instructions' => $m->instructions, 'due_at' => $m->due_at],
-            ContentType::PracticeTest => ['test_id' => $m->id],
+            ContentType::PracticeTest => ['mode' => 'existing', 'test_id' => $m->id],
         };
     }
 

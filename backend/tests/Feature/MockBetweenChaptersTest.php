@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Enums\ContentType;
 use App\Enums\TestKind;
+use App\Filament\Resources\CourseResource\Pages\ManageCurriculum;
 use App\Models\Admin;
 use App\Models\Course;
 use App\Models\Subject;
@@ -10,8 +12,10 @@ use App\Models\Test;
 use App\Models\User;
 use App\Services\Courses\CourseOutline;
 use App\Services\Courses\EnrollmentService;
+use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 /** A mock test can sit between the chapters of a subject, in any position, and students see it there. */
@@ -110,5 +114,58 @@ class MockBetweenChaptersTest extends TestCase
         $this->assertStringContainsString('Mock A', $html);
         $this->assertMatchesRegularExpression('#<a\b[^>]*href="[^"]*/tests/'.$this->mock->id.'/questions"#', $html);
         $this->assertLessThan(strpos($html, 'Two'), strpos($html, 'Mock A'), 'the mock test is listed before chapter Two');
+    }
+
+    private function builder()
+    {
+        $this->actingAs(Admin::create(['name' => 'A', 'email' => 'a@example.com', 'password' => 'secret-password']), 'admin');
+        Filament::setCurrentPanel('admin');
+
+        return Livewire::test(ManageCurriculum::class, ['record' => $this->course->id]);
+    }
+
+    public function test_the_popup_can_create_a_brand_new_mock_test_in_place(): void
+    {
+        $this->builder()->callAction('mockTest', [
+            'mode' => 'new', 'new_title' => 'Fresh Mock', 'new_duration_minutes' => 45, 'new_marks_correct' => 3, 'new_marks_wrong' => 1,
+        ], ['subject' => $this->subject->id, 'afterChapter' => $this->chapters['One']->id])->assertHasNoActionErrors();
+
+        $test = Test::where('title', 'Fresh Mock')->firstOrFail();
+        $this->assertSame([TestKind::Mock, 45], [$test->kind, $test->duration_minutes]);
+        $this->assertTrue($test->is_published);
+        $this->assertSame(['One', 'MOCK', 'Two', 'Three'], $this->titles());
+    }
+
+    public function test_the_popup_can_add_an_existing_mock_test(): void
+    {
+        $this->builder()->callAction('mockTest', ['mode' => 'existing', 'test_id' => $this->mock->id], ['subject' => $this->subject->id])
+            ->assertHasNoActionErrors();
+
+        $this->assertSame(['One', 'Two', 'Three', 'MOCK'], $this->titles());
+    }
+
+    public function test_creating_a_new_mock_test_needs_a_name(): void
+    {
+        $this->builder()
+            ->callAction('mockTest', ['mode' => 'new', 'new_duration_minutes' => 30, 'new_marks_correct' => 4, 'new_marks_wrong' => 1], ['subject' => $this->subject->id])
+            ->assertHasActionErrors(['new_title' => 'required']);
+    }
+
+    public function test_choosing_existing_needs_a_test_to_be_picked(): void
+    {
+        $this->builder()
+            ->callAction('mockTest', ['mode' => 'existing'], ['subject' => $this->subject->id])
+            ->assertHasActionErrors(['test_id' => 'required']);
+    }
+
+    public function test_a_new_practice_test_is_created_from_the_content_form(): void
+    {
+        $this->builder()->callAction('content', [
+            'title' => 'Quick Practice', 'mode' => 'new', 'new_duration_minutes' => 10, 'new_marks_correct' => 4, 'new_marks_wrong' => 1,
+        ], ['chapter' => $this->chapters['One']->id, 'type' => ContentType::PracticeTest->value])->assertHasNoActionErrors();
+
+        $test = Test::where('title', 'Quick Practice')->firstOrFail();
+        $this->assertSame(TestKind::Practice, $test->kind);
+        $this->assertTrue($this->chapters['One']->contents()->where('contentable_id', $test->id)->exists());
     }
 }

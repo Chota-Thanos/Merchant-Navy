@@ -5,12 +5,17 @@ namespace App\Filament\Support;
 use App\Enums\ContentType;
 use App\Enums\TestKind;
 use App\Enums\VideoProvider;
+use App\Models\Course;
 use App\Models\Test;
+use App\Services\Courses\CourseOutline;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\ToggleButtons;
+use Filament\Schemas\Components\Group;
+use Filament\Schemas\Components\Utilities\Get;
 
 /**
  * The form for each chapter content type (opened in a slide-over from the course builder).
@@ -60,25 +65,58 @@ class ContentForm
                 RichEditor::make('instructions')->required(),
                 DateTimePicker::make('due_at')->label('Due date (optional)'),
             ],
-            ContentType::PracticeTest => [
-                Select::make('test_id')->label('Practice test')->required()->searchable()->preload()
-                    ->options(fn () => Test::where('course_id', $courseId)->where('kind', TestKind::Practice)->pluck('title', 'id'))
-                    ->helperText('Pick a test, or create a new one with the + button. Add its questions afterwards with "Manage questions".')
-                    ->createOptionModalHeading('New practice test')
-                    ->createOptionForm(self::newTestFields())
-                    ->createOptionUsing(fn (array $data) => Test::create($data + ['course_id' => $courseId, 'kind' => TestKind::Practice, 'is_published' => true])->getKey()),
-            ],
+            ContentType::PracticeTest => self::testPicker($courseId, TestKind::Practice, askTitle: false),
         }];
     }
 
-    /** Fields to create a test on the spot (used for practice and mock tests). */
-    public static function newTestFields(): array
+    /**
+     * "Use an existing test" or "Create a new test" with its own fields, for mock and practice tests.
+     * Read the result with resolveTest(). A new practice test is named after the content title.
+     */
+    public static function testPicker(int $courseId, TestKind $kind, bool $askTitle = true): array
     {
+        $noun = $kind === TestKind::Mock ? 'mock test' : 'practice test';
+        $existing = fn () => $kind === TestKind::Mock
+            ? app(CourseOutline::class)->unplacedMockTests(Course::findOrFail($courseId))
+            : Test::where('course_id', $courseId)->where('kind', $kind)->orderBy('title')->pluck('title', 'id');
+        $isNew = fn (Get $get) => $get('mode') === 'new';
+
         return [
-            TextInput::make('title')->required()->maxLength(150),
-            TextInput::make('duration_minutes')->label('Duration (minutes)')->numeric()->required()->default(30)->minValue(1),
-            TextInput::make('marks_correct')->label('Marks for a correct answer')->numeric()->required()->default(4),
-            TextInput::make('marks_wrong')->label('Marks deducted for a wrong answer')->numeric()->required()->default(1),
+            ToggleButtons::make('mode')->label('What do you want to do?')->inline()->grouped()->live()->required()
+                ->options(['existing' => "Add an existing {$noun}", 'new' => "Create a new {$noun}"])
+                ->icons(['existing' => 'heroicon-m-magnifying-glass', 'new' => 'heroicon-m-plus-circle'])
+                ->default(fn () => $existing()->isEmpty() ? 'new' : 'existing'),
+
+            Select::make('test_id')->label(ucfirst($noun))->searchable()->preload()
+                ->options($existing)
+                ->visible(fn (Get $get) => $get('mode') === 'existing')
+                ->required(fn (Get $get) => $get('mode') === 'existing')
+                ->helperText("Only {$noun}s that are not placed yet are listed."),
+
+            Group::make([
+                ...($askTitle ? [TextInput::make('new_title')->label(ucfirst($noun).' name')->required()->maxLength(150)->columnSpanFull()] : []),
+                TextInput::make('new_duration_minutes')->label('Duration (minutes)')->numeric()->required()->default(30)->minValue(1),
+                TextInput::make('new_marks_correct')->label('Marks for a correct answer')->numeric()->required()->default(4),
+                TextInput::make('new_marks_wrong')->label('Marks deducted for a wrong answer')->numeric()->required()->default(1),
+            ])->columns(3)->visible($isNew),
         ];
+    }
+
+    /** The test chosen or described by testPicker(): finds the existing one, or creates the new one. */
+    public static function resolveTest(array $data, int $courseId, TestKind $kind, ?string $fallbackTitle = null): Test
+    {
+        if (($data['mode'] ?? 'existing') === 'existing') {
+            return Test::where('course_id', $courseId)->where('kind', $kind)->findOrFail($data['test_id']);
+        }
+
+        return Test::create([
+            'course_id' => $courseId,
+            'kind' => $kind,
+            'title' => $data['new_title'] ?? $fallbackTitle ?? 'New test',
+            'duration_minutes' => (int) $data['new_duration_minutes'],
+            'marks_correct' => $data['new_marks_correct'],
+            'marks_wrong' => $data['new_marks_wrong'],
+            'is_published' => true,
+        ]);
     }
 }
