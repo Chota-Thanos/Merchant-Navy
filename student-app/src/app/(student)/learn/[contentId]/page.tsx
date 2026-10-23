@@ -9,6 +9,7 @@ import { useApi } from "@/lib/use-api";
 import { ContentRow } from "@/components/course/ContentRow";
 import { contentTypes } from "@/components/course/contentTypes";
 import { AssignmentView } from "@/components/content/AssignmentView";
+import { ReachedEnd } from "@/components/content/ReachedEnd";
 import { LiveClassView } from "@/components/content/LiveClassView";
 import { ProtectedPdfViewer } from "@/components/content/ProtectedPdfViewer";
 import { VideoPlayer } from "@/components/content/VideoPlayer";
@@ -35,6 +36,11 @@ export default function LearnPage() {
   const next = all[index + 1];
   const chapter = subject.chapters.find((ch) => ch.id === content.chapterId)!;
   let chapterNo = 0;
+
+  // Reading, watching or listening count as done when the student reaches the end or moves on. A test or an assignment
+  // counts only when it is actually taken or handed in (the server records that), so those are never auto-completed here.
+  const autoCompletes = !content.completed && ["video", "note", "pdf", "live_class"].includes(content.type);
+  const onDone = autoCompletes ? () => void markComplete() : undefined;
 
   async function markComplete() {
     await api.courses.markContentComplete(content.id);
@@ -66,7 +72,7 @@ export default function LearnPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-4">
-          <ContentBody item={content} />
+          <ContentBody item={content} onDone={onDone} />
 
           <div className="flex flex-wrap items-center gap-2">
             {content.completed ? (
@@ -85,7 +91,7 @@ export default function LearnPage() {
                 </Button>
               )}
               {next && (
-                <Button href={`/learn/${next.id}`}>
+                <Button href={`/learn/${next.id}`} onClick={onDone}>
                   Next <ArrowRight className="size-4" />
                 </Button>
               )}
@@ -130,18 +136,19 @@ export default function LearnPage() {
 }
 
 /** Picks the viewer for each content type. Add a case here for a new type. */
-function ContentBody({ item }: { item: ContentItem }) {
+function ContentBody({ item, onDone }: { item: ContentItem; onDone?: () => void }) {
   switch (item.type) {
     case "video":
       return <VideoPlayer title={item.title} embedUrl={item.embedUrl} durationSeconds={item.durationSeconds} />;
     case "live_class":
       return <LiveClassView item={item} />;
     case "pdf":
-      return <ProtectedPdfViewer contentId={item.id} pageCount={item.pageCount} />;
+      return <ProtectedPdfViewer contentId={item.id} pageCount={item.pageCount} onReachEnd={onDone} />;
     case "note":
       return (
         <Card className="p-6 sm:p-8">
           <MathText html={item.body} className="text-[15px] leading-relaxed text-slate-700" />
+          {onDone && <ReachedEnd onReach={onDone} />}
         </Card>
       );
     case "assignment":

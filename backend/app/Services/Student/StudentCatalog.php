@@ -282,10 +282,32 @@ class StudentCatalog
         return $this->enrollments ??= $this->user->enrollments()->get()->keyBy('course_id');
     }
 
-    /** Ids of content this student marked complete. */
+    /**
+     * Ids of content this student has completed: marked or finished by reading/watching, plus the ones that finish by
+     * DOING something: a practice test counts once it has been submitted, an assignment once a file was handed in.
+     * (Derived from the student's own attempts/submissions, so it is right even for work done before this rule existed.)
+     */
     private function completed(): Collection
     {
-        return $this->completed ??= ContentProgress::where('user_id', $this->user->id)->pluck('chapter_content_id');
+        return $this->completed ??= ContentProgress::where('user_id', $this->user->id)->pluck('chapter_content_id')
+            ->merge($this->doneByAction(ContentType::PracticeTest, (new Test)->getMorphClass(), $this->testStats()->keys()))
+            ->merge($this->doneByAction(
+                ContentType::Assignment,
+                (new Assignment)->getMorphClass(),
+                AssignmentSubmission::where('user_id', $this->user->id)->pluck('assignment_id'),
+            ))
+            ->unique()->values();
+    }
+
+    /** Content of this type whose test/assignment the student has already taken or handed in. */
+    private function doneByAction(ContentType $type, string $morph, Collection $materialIds): Collection
+    {
+        if ($materialIds->isEmpty()) {
+            return collect();
+        }
+
+        return ChapterContent::where('type', $type)->where('contentable_type', $morph)
+            ->whereIn('contentable_id', $materialIds)->pluck('id');
     }
 
     /** Per test: how many submitted attempts, best score, last attempt uuid. */

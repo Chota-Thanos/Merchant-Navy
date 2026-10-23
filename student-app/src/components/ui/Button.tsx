@@ -36,7 +36,7 @@ export function Button({ variant = "primary", size = "md", loading, href, classN
   );
   if (href) {
     return (
-      <Link href={href} className={classes}>
+      <Link href={href} className={classes} onClick={rest.onClick as React.MouseEventHandler<HTMLAnchorElement> | undefined}>
         {children}
       </Link>
     );

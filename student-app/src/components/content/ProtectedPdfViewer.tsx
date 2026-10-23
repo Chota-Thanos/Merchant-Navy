@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
  * behind short-lived signed URLs), never the PDF file, so there is nothing to download.
  * Right-click, drag, text selection and printing are also disabled here.
  */
-export function ProtectedPdfViewer({ contentId, pageCount }: { contentId: number; pageCount: number }) {
+export function ProtectedPdfViewer({ contentId, pageCount, onReachEnd }: { contentId: number; pageCount: number; onReachEnd?: () => void }) {
   const { data: me } = useApi(() => api.profile.getMe(), []);
   const { data: pageUrls, loading } = useApi(() => api.courses.getPdfPageUrls(contentId), [contentId]);
   // null = mock mode (sample pages). An empty list = the server is still preparing the document.
@@ -30,6 +30,26 @@ export function ProtectedPdfViewer({ contentId, pageCount }: { contentId: number
     const target = document.getElementById(`pdf-page-${page}`);
     if (box && target) box.scrollTo({ top: target.offsetTop - box.offsetTop - 16, behavior: "smooth" });
   }, [page]);
+
+  // Reaching the last page (it scrolls into view, or the student jumps there) counts as having read the document.
+  const reachEnd = useRef(onReachEnd);
+  reachEnd.current = onReachEnd;
+  useEffect(() => {
+    const box = scroller.current;
+    const last = preparing ? null : document.getElementById(`pdf-page-${total}`);
+    if (!box || !last || !reachEnd.current) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          observer.disconnect();
+          reachEnd.current?.();
+        }
+      },
+      { root: box, threshold: 0.3 },
+    );
+    observer.observe(last);
+    return () => observer.disconnect();
+  }, [total, preparing, pageUrls]);
 
   // Full screen: the page fills the whole window (works on every phone). Where the browser allows it
   // we also ask for true full screen, which hides the browser bars. Esc leaves it.
