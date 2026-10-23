@@ -36,7 +36,7 @@ export default function MockTestCoursesPage() {
                 href={`/mock-tests/${course.id}`}
                 className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-white transition hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-lg hover:shadow-brand-600/5"
               >
-                <div className={cn("flex h-24 items-end bg-gradient-to-br p-5", course.accent)}>
+                <div className={cn("flex h-16 items-end bg-gradient-to-br p-4 sm:h-24 sm:p-5", course.accent)}>
                   <span className="rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-white ring-1 ring-white/25">
                     {tests.length} mock test{tests.length > 1 ? "s" : ""}
                   </span>

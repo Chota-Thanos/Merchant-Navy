@@ -27,7 +27,7 @@ export function PageHeader({ title, subtitle, crumbs, action }: { title: string;
       )}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-navy-900">{title}</h1>
+          <h1 className="text-xl text-navy-900 sm:text-2xl">{title}</h1>
           {subtitle && <p className="mt-1 text-sm text-slate-500">{subtitle}</p>}
         </div>
         {action}

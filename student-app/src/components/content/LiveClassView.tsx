@@ -52,7 +52,7 @@ export function LiveClassView({ item }: { item: LiveClass }) {
   return (
     <Panel>
       <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-200">Starts in</p>
-      <p className="mt-2 font-display text-4xl font-extrabold tabular-nums sm:text-5xl">{formatClock(startsIn)}</p>
+      <p className="mt-2 font-display text-3xl font-bold tabular-nums sm:text-5xl">{formatClock(startsIn)}</p>
       <p className="mt-4 px-6 text-center text-lg font-bold">{item.title}</p>
       <div className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-1 text-sm text-slate-400">
         <span className="flex items-center gap-1.5">

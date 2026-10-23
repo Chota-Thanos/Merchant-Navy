@@ -10,7 +10,7 @@ export function CourseCard({ course }: { course: CourseSummary }) {
       href={`/my-courses/${course.id}`}
       className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-white transition hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-lg hover:shadow-brand-600/5"
     >
-      <div className={cn("relative h-28 bg-gradient-to-br p-5", course.accent)}>
+      <div className={cn("relative h-20 bg-gradient-to-br p-4 sm:h-28 sm:p-5", course.accent)}>
         <svg aria-hidden className="absolute bottom-0 right-0 h-full opacity-20" viewBox="0 0 200 100" fill="none">
           <path d="M0 70 Q50 50 100 70 T200 70 V100 H0Z" fill="white" />
           <path d="M0 82 Q50 66 100 82 T200 82 V100 H0Z" fill="white" />

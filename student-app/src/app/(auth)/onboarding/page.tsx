@@ -17,7 +17,7 @@ export default function OnboardingPage() {
       <div className="mb-6 grid size-12 place-items-center rounded-2xl bg-brand-50 text-brand-600">
         <UserRound className="size-6" />
       </div>
-      <h2 className="text-3xl font-extrabold text-navy-900">Set up your profile</h2>
+      <h2 className="text-2xl text-navy-900 sm:text-3xl">Set up your profile</h2>
       <p className="mt-2 mb-8 text-slate-500">Just a few details so we can personalise your dashboard and keep you updated.</p>
       {!me ? (
         <Skeleton className="h-96" />

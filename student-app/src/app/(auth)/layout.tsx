@@ -12,7 +12,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <Logo tone="light" />
         <div className="relative mt-auto max-w-md">
           <p className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-brand-200">Student Dashboard</p>
-          <h1 className="text-4xl font-extrabold leading-tight">{brand.tagline}</h1>
+          <h1 className="text-3xl leading-tight sm:text-4xl">{brand.tagline}</h1>
           <p className="mt-4 text-base text-slate-300">Your lectures, notes, practice tests and mock exams — all in one place.</p>
           <ul className="mt-8 space-y-3 text-sm text-slate-200">
             {["Live & recorded lectures", "Chapter-wise practice tests", "Full-length mock tests with rank & solutions"].map((t) => (

@@ -79,32 +79,32 @@ export default function ResultPage() {
 
       {/* Score, rank, percentile */}
       <h2 className="mb-3 mt-8 text-lg font-bold text-navy-900">Result Summary</h2>
-      <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <div className="rounded-2xl border border-line bg-white p-5 md:col-span-1">
+      <section className="grid grid-cols-3 gap-2.5 md:gap-4">
+        <div className="rounded-2xl border border-line bg-white p-3 sm:p-5">
           <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Score</p>
-          <p className="mt-1 font-display text-4xl font-extrabold text-navy-900">
+          <p className="mt-1 font-display text-2xl font-bold text-navy-900 sm:text-4xl">
             {r.score}
-            <span className="text-xl text-slate-400">/{r.totalMarks}</span>
+            <span className="text-base text-slate-400 sm:text-xl">/{r.totalMarks}</span>
           </p>
         </div>
-        <div className="flex items-center gap-4 rounded-2xl border border-line bg-white p-5">
-          <span className="grid size-12 place-items-center rounded-xl bg-amber-50 text-amber-600">
+        <div className="flex items-center gap-4 rounded-2xl border border-line bg-white p-3 sm:p-5">
+          <span className="hidden size-12 place-items-center rounded-xl bg-amber-50 text-amber-600 sm:grid">
             <Medal className="size-6" />
           </span>
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Rank</p>
-            <p className="font-display text-2xl font-extrabold text-navy-900">
-              #{r.rank} <span className="text-sm font-semibold text-slate-400">of {r.totalCandidates}</span>
+            <p className="font-display text-xl font-bold text-navy-900 sm:text-2xl">
+              #{r.rank} <span className="text-xs font-semibold text-slate-400 sm:text-sm">of {r.totalCandidates}</span>
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-4 rounded-2xl border border-line bg-white p-5">
-          <span className="grid size-12 place-items-center rounded-xl bg-violet-50 text-violet-600">
+        <div className="flex items-center gap-4 rounded-2xl border border-line bg-white p-3 sm:p-5">
+          <span className="hidden size-12 place-items-center rounded-xl bg-violet-50 text-violet-600 sm:grid">
             <Users className="size-6" />
           </span>
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Percentile</p>
-            <p className="font-display text-2xl font-extrabold text-navy-900">{r.percentile.toFixed(2)}</p>
+            <p className="font-display text-xl font-bold text-navy-900 sm:text-2xl">{r.percentile.toFixed(2)}</p>
           </div>
         </div>
       </section>
@@ -113,7 +113,7 @@ export default function ResultPage() {
       {/* Progress tiles */}
       <section className="mt-6 rounded-2xl bg-brand-50/50 p-4 ring-1 ring-brand-100 sm:p-6">
         <h3 className="mb-4 text-center font-bold text-navy-900">Your Progress</h3>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-3">
           <StatTile icon={CircleCheck} iconClass="text-green-600" label="Correct" value={`${r.correct}/${total}`} percent={(r.correct / total) * 100} barClass="bg-green-500" subLabel="Marks Obtained" subValue={r.marksObtained} subValueClass="text-green-700" />
           <StatTile icon={CircleX} iconClass="text-red-600" label="Incorrect" value={`${r.incorrect}/${total}`} percent={(r.incorrect / total) * 100} barClass="bg-red-500" subLabel="Marks Lost" subValue={r.marksLost} subValueClass="text-red-700" />
           <StatTile icon={SkipForward} iconClass="text-slate-500" label="Skipped" value={`${r.skipped}/${total}`} percent={(r.skipped / total) * 100} barClass="bg-sky-400" subLabel="Marks Skipped" subValue={r.skipped * r.test.marksCorrect} />

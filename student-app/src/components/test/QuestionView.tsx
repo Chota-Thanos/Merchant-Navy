@@ -31,9 +31,9 @@ export function QuestionView({
         </span>
       </div>
 
-      <MathText html={question.body} className="mt-5 text-[16px] leading-relaxed text-navy-900" />
+      <MathText html={question.body} className="mt-4 text-[15px] leading-[1.7] text-navy-900 sm:mt-5 sm:text-[16px]" />
 
-      <div className="mt-6 space-y-3" role="radiogroup" aria-label={`Options for question ${number}`}>
+      <div className="mt-5 space-y-2.5 sm:mt-6 sm:space-y-3" role="radiogroup" aria-label={`Options for question ${number}`}>
         {question.options.map((opt) => {
           const isSelected = selected === opt.id;
           return (
@@ -44,7 +44,7 @@ export function QuestionView({
               // Clicking the chosen option again deselects it (as per instructions)
               onClick={() => onSelect(isSelected ? null : opt.id)}
               className={cn(
-                "flex w-full items-center gap-4 rounded-xl border px-4 py-3.5 text-left transition",
+                "flex w-full items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition sm:gap-4 sm:px-4 sm:py-3.5",
                 isSelected ? "border-brand-500 bg-brand-50 ring-1 ring-brand-500" : "border-line bg-white hover:border-slate-300 hover:bg-slate-50",
               )}
             >

@@ -25,17 +25,19 @@ export default function CoursePage() {
     <>
       <PageHeader title={course.title} crumbs={[{ label: "My Courses", href: "/my-courses" }, { label: course.title }]} />
 
-      <section className={cn("relative mb-8 overflow-hidden rounded-2xl bg-gradient-to-br p-6 text-white sm:p-8", course.accent)}>
+      <section className={cn("relative mb-6 overflow-hidden rounded-2xl bg-gradient-to-br p-5 text-white sm:mb-8 sm:p-8", course.accent)}>
         <div aria-hidden className="absolute -right-10 -top-10 size-56 rounded-full bg-white/10 blur-2xl" />
         <p className="relative max-w-2xl text-sm text-white/80 sm:text-base">{course.description}</p>
-        <div className="relative mt-6 grid gap-4 sm:grid-cols-3">
+        <div className="relative mt-5 grid grid-cols-1 gap-2.5 sm:mt-6 sm:grid-cols-3 sm:gap-4">
           <Stat icon={Layers} label="Subjects" value={`${course.subjectsCount} · ${course.chaptersCount} chapters`} />
           <Stat icon={Target} label="Tests" value={`${course.testsCount} practice & mock`} />
-          <div className="rounded-xl bg-white/10 p-4 ring-1 ring-white/15">
-            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-white/70">
-              <TrendingUp className="size-4" /> Progress
-            </p>
-            <p className="mt-1 text-lg font-bold">{course.progressPercent}% complete</p>
+          <div className="rounded-xl bg-white/10 px-4 py-3 ring-1 ring-white/15 sm:p-4">
+            <div className="flex items-center justify-between gap-3 sm:block">
+              <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-white/70">
+                <TrendingUp className="size-4" /> Progress
+              </p>
+              <p className="text-[15px] font-bold sm:mt-1 sm:text-lg">{course.progressPercent}% complete</p>
+            </div>
             <ProgressBar value={course.progressPercent} className="mt-2 bg-white/20" barClassName="bg-white" />
           </div>
         </div>
@@ -61,11 +63,11 @@ export default function CoursePage() {
 
 function Stat({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
   return (
-    <div className="rounded-xl bg-white/10 p-4 ring-1 ring-white/15">
+    <div className="flex items-center justify-between gap-3 rounded-xl bg-white/10 px-4 py-3 ring-1 ring-white/15 sm:block sm:p-4">
       <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-white/70">
         <Icon className="size-4" /> {label}
       </p>
-      <p className="mt-1 text-lg font-bold">{value}</p>
+      <p className="text-[15px] font-bold sm:mt-1 sm:text-lg">{value}</p>
     </div>
   );
 }

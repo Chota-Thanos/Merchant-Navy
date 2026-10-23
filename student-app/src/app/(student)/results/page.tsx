@@ -25,7 +25,7 @@ export default function ResultsPage() {
         <EmptyState icon={Trophy} title="No results yet" body="Take a practice or mock test and your result will appear here." action={<Button href="/mock-tests">Go to Mock Tests</Button>} />
       ) : (
         <>
-          <div className="mb-6 grid gap-4 sm:grid-cols-3">
+          <div className="mb-5 grid grid-cols-3 gap-2.5 sm:mb-6 sm:gap-4">
             <Summary icon={Trophy} label="Tests taken" value={String(results.length)} />
             <Summary icon={Target} label="Average accuracy" value={`${Math.round(results.reduce((n, r) => n + r.accuracy, 0) / results.length)}%`} />
             <Summary icon={Medal} label="Best rank" value={`#${Math.min(...results.map((r) => r.rank))}`} />
@@ -104,13 +104,13 @@ export default function ResultsPage() {
 
 function Summary({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
   return (
-    <div className="flex items-center gap-4 rounded-2xl border border-line bg-white p-5">
-      <span className="grid size-11 place-items-center rounded-xl bg-brand-50 text-brand-600">
-        <Icon className="size-5" />
+    <div className="flex flex-col gap-2 rounded-2xl border border-line bg-white p-3 sm:flex-row sm:items-center sm:gap-4 sm:p-5">
+      <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-600 sm:size-11 sm:rounded-xl">
+        <Icon className="size-4 sm:size-5" />
       </span>
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{label}</p>
-        <p className="font-display text-2xl font-extrabold text-navy-900">{value}</p>
+      <div className="min-w-0">
+        <p className="text-[10px] font-semibold uppercase leading-tight tracking-wide text-slate-500 sm:text-xs sm:tracking-wider">{label}</p>
+        <p className="font-display text-xl font-bold text-navy-900 sm:text-2xl">{value}</p>
       </div>
     </div>
   );

@@ -32,7 +32,7 @@ export default function TestInstructionsPage() {
         ) : (
           <>
             <p className="text-xs font-bold uppercase tracking-wider text-brand-600">{test.kind === "mock" ? "Mock test" : "Practice test"}</p>
-            <h1 className="mt-1 text-2xl font-extrabold text-navy-900 sm:text-3xl">{test.title}</h1>
+            <h1 className="mt-1 text-xl text-navy-900 sm:text-3xl">{test.title}</h1>
             <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm font-medium text-slate-500">
               <span className="flex items-center gap-1.5">
                 <FileQuestion className="size-4" /> {test.questionsCount} Questions

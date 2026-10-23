@@ -81,7 +81,7 @@ export default function VerifyOtpPage() {
       <div className="mb-6 grid size-12 place-items-center rounded-2xl bg-brand-50 text-brand-600">
         <ShieldCheck className="size-6" />
       </div>
-      <h2 className="text-3xl font-extrabold text-navy-900">Enter OTP</h2>
+      <h2 className="text-2xl text-navy-900 sm:text-3xl">Enter OTP</h2>
       <p className="mt-2 text-slate-500">
         We sent a 6-digit code to <span className="font-semibold text-navy-900">+91 {phone}</span>
       </p>

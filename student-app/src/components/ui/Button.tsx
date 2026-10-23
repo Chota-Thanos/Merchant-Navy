@@ -29,7 +29,7 @@ interface Props extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 export function Button({ variant = "primary", size = "md", loading, href, className, children, disabled, ...rest }: Props) {
   const classes = cn(
-    "inline-flex items-center justify-center rounded-lg font-display font-extrabold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 disabled:pointer-events-none disabled:opacity-50 cursor-pointer",
+    "inline-flex items-center justify-center whitespace-nowrap rounded-lg font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 disabled:pointer-events-none disabled:opacity-50 cursor-pointer",
     variants[variant],
     sizes[size],
     className,

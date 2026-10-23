@@ -4,9 +4,9 @@ import "katex/dist/katex.min.css";
 import "./globals.css";
 import { brand } from "@/lib/config";
 
-// Same families and weights as mymerchantnavy.com (Inter body, Plus Jakarta Sans headings/buttons).
-const inter = Inter({ variable: "--font-inter", subsets: ["latin"], weight: ["400", "500", "600", "700", "800"], display: "swap" });
-const jakarta = Plus_Jakarta_Sans({ variable: "--font-jakarta", subsets: ["latin"], weight: ["500", "600", "700", "800"], display: "swap" });
+// Same families as mymerchantnavy.com (Inter body, Plus Jakarta Sans headings). Variable fonts: any weight, one file.
+const inter = Inter({ variable: "--font-inter", subsets: ["latin"], display: "swap" });
+const jakarta = Plus_Jakarta_Sans({ variable: "--font-jakarta", subsets: ["latin"], display: "swap" });
 
 export const metadata: Metadata = {
   title: { default: brand.name, template: `%s · ${brand.name}` },

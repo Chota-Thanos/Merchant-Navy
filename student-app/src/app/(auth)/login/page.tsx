@@ -34,7 +34,7 @@ export default function LoginPage() {
       <div className="mb-6 grid size-12 place-items-center rounded-2xl bg-brand-50 text-brand-600">
         <Smartphone className="size-6" />
       </div>
-      <h2 className="text-3xl font-extrabold text-navy-900">Welcome aboard</h2>
+      <h2 className="text-2xl text-navy-900 sm:text-3xl">Welcome aboard</h2>
       <p className="mt-2 text-slate-500">Log in with your mobile number. We&apos;ll send you a one-time password.</p>
 
       <form onSubmit={submit} className="mt-8 space-y-5">

@@ -9,6 +9,15 @@
   --font-sans: var(--font-inter), "Segoe UI", Arial, sans-serif;
   --font-display: var(--font-jakarta), var(--font-inter), sans-serif;
 
+  /*
+   * Type weights. The fonts are variable, so these sit between the usual steps. They are lighter than the defaults
+   * (and than mymerchantnavy.com's 800 headings): on a phone, heavy type is tiring to read in a long test.
+   */
+  --font-weight-medium: 500;
+  --font-weight-semibold: 560;
+  --font-weight-bold: 620;
+  --font-weight-extrabold: 680;
+
   /* Navy — sidebar, headings, dark surfaces */
   --color-navy-950: #071429;
   --color-navy-900: #0b1e3d;
@@ -40,16 +49,25 @@ body {
   font-family: var(--font-sans);
 }
 
-/* Matches mymerchantnavy.com: Jakarta headings, weight 800, slightly tight tracking */
-h1,
-h2,
-h3 {
-  font-family: var(--font-display);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-}
-h1 {
-  letter-spacing: -0.03em;
+/* Same families as mymerchantnavy.com (Jakarta headings, Inter text) at a calmer weight. In the base layer, so a
+   component can still choose its own weight with a font-* class. */
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  /* Phones: slightly smaller type and spacing everywhere (rem based) */
+  @media (max-width: 640px) {
+    html {
+      font-size: 15px;
+    }
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 650;
+    letter-spacing: -0.015em;
+  }
 }
 
 /* KaTeX: keep long display equations inside their card on small screens */
